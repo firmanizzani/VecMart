@@ -48,10 +48,8 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       dateTo = new Date(now);
       dateTo.setHours(23, 59, 59, 999);
     } else if (period === 'yearly') {
-      const now = new Date(nowUTC);
-      dateFrom = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-      dateTo = new Date(now);
-      dateTo.setHours(23, 59, 59, 999);
+      dateFrom = new Date(Date.UTC(nowWIB.getUTCFullYear(), 0, 1) - WIB_OFFSET_MS);
+      dateTo = new Date(Date.UTC(nowWIB.getUTCFullYear(), nowWIB.getUTCMonth(), nowWIB.getUTCDate() + 1) - WIB_OFFSET_MS - 1);
     } else {
       dateFrom = query?.dateFrom ? new Date(query.dateFrom + 'T00:00:00') : new Date(nowUTC.getFullYear(), nowUTC.getMonth(), 1);
       dateTo = query?.dateTo ? new Date(query.dateTo + 'T23:59:59') : new Date(nowUTC);
@@ -163,11 +161,18 @@ async function getDashboardData(dateFrom: Date | null, dateTo: Date | null) {
 
 async function getRevenueData(dateFrom: Date, dateTo: Date, period: string) {
   const isDaily = period === 'daily';
+  const isYearly = period === 'yearly';
+  const rangeLabel = (date: Date) => new Date(date.getTime() + (isYearly ? 7 * 60 * 60 * 1000 : 0)).toISOString().slice(0, 10);
   const timeSlots = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
   
   const dayLabels: string[] = [];
   if (isDaily) {
     dayLabels.push(...timeSlots);
+  } else if (isYearly) {
+    const year = new Date(dateFrom.getTime() + 7 * 60 * 60 * 1000).getUTCFullYear();
+    for (let month = 1; month <= 12; month++) {
+      dayLabels.push(`${year}-${String(month).padStart(2, '0')}`);
+    }
   } else {
     const current = new Date(dateFrom);
     while (current <= dateTo) {
@@ -212,6 +217,8 @@ async function getRevenueData(dateFrom: Date, dateTo: Date, period: string) {
         else if (hourWIB <= 18) key = '18:00';
         else if (hourWIB <= 20) key = '20:00';
         else key = '22:00';
+      } else if (isYearly) {
+        key = new Date(new Date(t.createdAt).getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7);
       } else {
         key = new Date(t.createdAt).toISOString().slice(0, 10);
       }
@@ -252,8 +259,8 @@ async function getRevenueData(dateFrom: Date, dateTo: Date, period: string) {
       success: true,
       data: {
         period,
-        dateFrom: dateFrom.toISOString().slice(0, 10),
-        dateTo: dateTo.toISOString().slice(0, 10),
+        dateFrom: rangeLabel(dateFrom),
+        dateTo: rangeLabel(dateTo),
         totalOmset,
         netProfit,
         totalTransactions,
@@ -266,7 +273,7 @@ async function getRevenueData(dateFrom: Date, dateTo: Date, period: string) {
     return {
       success: false,
       message: 'Gagal memuat pendapatan: ' + e.message,
-      data: { period, dateFrom: dateFrom.toISOString().slice(0, 10), dateTo: dateTo.toISOString().slice(0, 10), totalOmset: 0, netProfit: 0, totalTransactions: 0, averageOrderValue: 0, chartData: [] }
+      data: { period, dateFrom: rangeLabel(dateFrom), dateTo: rangeLabel(dateTo), totalOmset: 0, netProfit: 0, totalTransactions: 0, averageOrderValue: 0, chartData: [] }
     };
   }
 }

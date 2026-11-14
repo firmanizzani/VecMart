@@ -126,6 +126,9 @@
   function shortDate(dateStr: string, totalPoints: number = 7) {
     if (!dateStr) return '';
     if (dateStr.includes(':')) return dateStr;
+    if (/^\d{4}-\d{2}$/.test(dateStr)) {
+      return new Date(`${dateStr}-01T00:00:00+07:00`).toLocaleDateString('id-ID', { month: 'short', timeZone: 'Asia/Jakarta' });
+    }
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     if (totalPoints <= 7) {
@@ -171,8 +174,7 @@
             data: omsetData,
             backgroundColor: '#1764bf',
             borderRadius: 2,
-            borderWidth: 2,
-            borderColor: '#ffffff',
+            borderWidth: 0,
             borderSkipped: false,
             barThickness: barThicknessVal,
             maxBarThickness: maxBarThicknessVal,
@@ -184,8 +186,7 @@
             data: profitData,
             backgroundColor: '#9babbd',
             borderRadius: 2,
-            borderWidth: 2,
-            borderColor: '#ffffff',
+            borderWidth: 0,
             borderSkipped: false,
             barThickness: barThicknessVal,
             maxBarThickness: maxBarThicknessVal,
@@ -222,7 +223,7 @@
         scales: {
           x: {
             grid: { display: false },
-            ticks: { font: { size: 11 }, color: '#64748b' }
+            ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 0, minRotation: 0, autoSkip: true }
           },
           y: {
             grid: { color: '#f1f5f9' },

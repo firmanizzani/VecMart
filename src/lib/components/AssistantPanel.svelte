@@ -46,7 +46,7 @@
   async function scrollConversation() { await tick(); if (conversation) conversation.scrollTop = conversation.scrollHeight; }
   function append(entry: Omit<Entry, 'id'>) {
     messages = [...messages, { id: crypto.randomUUID(), ...entry }].slice(-40); save(); scrollConversation();
-    if (entry.reply && ['stock_changed', 'stock_undone'].includes(entry.reply.kind)) window.dispatchEvent(new CustomEvent('vecmart:stock-changed'));
+    if (entry.reply && ['stock_changed', 'stock_undone', 'product_changed', 'product_undone'].includes(entry.reply.kind)) window.dispatchEvent(new CustomEvent('vecmart:stock-changed'));
   }
   async function api(path: string, body?: unknown) {
     const response = await fetch(`/api/ai/${path}`, {
@@ -86,9 +86,9 @@
   }
   async function choose(entry: Entry, productId: string) {
     if (busy || entry.resolved || !entry.reply?.selectionToken) return;
-    busy = true; busyLabel = 'Menyimpan penambahan stok…';
+    busy = true; busyLabel = 'Memeriksa produk…';
     try {
-      const result = await api('choose-product', { token: entry.reply.selectionToken, productId });
+      const result = await api(entry.reply.selectionEndpoint || 'choose-product', { token: entry.reply.selectionToken, productId });
       messages = messages.map(item => item.id === entry.id ? { ...item, resolved: true } : item);
       append({ role: 'assistant', text: result.data.text, reply: result.data });
     } catch (error) { append({ role: 'assistant', text: error instanceof Error ? error.message : 'Stok belum dapat diperbarui.', error: true }); }
@@ -96,9 +96,9 @@
   }
   async function undo(entry: Entry) {
     if (busy || !entry.reply?.undoToken || entry.reply.change?.undone) return;
-    busy = true; busyLabel = 'Membatalkan penambahan stok…';
+    busy = true; busyLabel = 'Membatalkan perubahan…';
     try {
-      const result = await api('undo', { token: entry.reply.undoToken });
+      const result = await api(entry.reply.change?.field ? 'undo-action' : 'undo', { token: entry.reply.undoToken });
       messages = messages.map(item => {
         const reply = item.reply;
         if (!reply?.change || reply.change.id !== result.data.change?.id) return item;
@@ -109,6 +109,20 @@
     finally { busy = false; save(); scrollConversation(); }
   }
   function signIn() { authStore.logout(); goto('/login'); }
+  async function confirm(entry: Entry) {
+    if (busy || entry.resolved || !entry.reply?.confirmationToken) return;
+    busy = true; busyLabel = 'Menyimpan perubahan…';
+    try {
+      const result = await api('confirm', { token: entry.reply.confirmationToken });
+      messages = messages.map(item => item.id === entry.id ? { ...item, resolved: true } : item);
+      append({ role: 'assistant', text: result.data.text, reply: result.data });
+    } catch (error) { append({ role: 'assistant', text: error instanceof Error ? error.message : 'Perubahan belum dapat disimpan.', error: true }); }
+    finally { busy = false; save(); scrollConversation(); }
+  }
+  function cancel(entry: Entry) {
+    messages = messages.map(item => item.id === entry.id ? { ...item, resolved: true } : item);
+    append({ role: 'assistant', text: 'Perubahan dibatalkan. Data produk tidak diubah.' });
+  }
   function clearConversation() { messages = []; save(); input?.focus(); }
   function useSuggestion(text: string) { draft = text; input?.focus(); }
   function inputKeydown(event: KeyboardEvent) {
@@ -139,7 +153,7 @@
       <div class="assistant-chat-bar"><div><MessageSquare size={16} /><span>Percakapan toko</span></div><button disabled={busy || !messages.length} on:click={clearConversation} title="Bersihkan percakapan" aria-label="Bersihkan percakapan"><Trash2 size={15} /><span>Bersihkan</span></button></div>
       <div class="assistant-conversation" bind:this={conversation} role="log" aria-live="polite" aria-relevant="additions" aria-label="Pesan percakapan">
         {#if !messages.length}
-          <div class="assistant-welcome"><Bot size={34} strokeWidth={1.4} /><h2>Apa yang ingin Anda kerjakan?</h2><p>Cari tahu kondisi toko, atau tambahkan stok dengan menyebutkan produk dan jumlahnya.</p><div class="assistant-suggestions">{#each suggestions as suggestion}<button on:click={() => useSuggestion(suggestion.text)} disabled={busy || !configured || sessionExpired}><span>{suggestion.text}</span><ChevronRight size={15} /></button>{/each}</div></div>
+          <div class="assistant-welcome"><Bot size={34} strokeWidth={1.4} /><h2>Apa yang ingin Anda kerjakan?</h2><p>Cek kondisi toko dan sesuaikan stok. Tambah/kurangi stok langsung dijalankan; set stok dan harga jual perlu konfirmasi.</p><div class="assistant-suggestions">{#each suggestions as suggestion}<button on:click={() => useSuggestion(suggestion.text)} disabled={busy || !configured || sessionExpired}><span>{suggestion.text}</span><ChevronRight size={15} /></button>{/each}</div></div>
         {/if}
         {#each messages as entry (entry.id)}
           <article class="assistant-entry" class:from-user={entry.role === 'user'} class:entry-error={entry.error}>
@@ -149,12 +163,17 @@
                 <div class="assistant-product-list">{#each entry.reply.products as product}
                   {#if entry.reply.kind === 'choose_product'}
                     <button class="assistant-product-choice" disabled={busy || entry.resolved || sessionExpired} on:click={() => choose(entry, product.id)}><span><strong>{product.name}</strong><small>{product.barcode} · Stok {product.stock} {product.unit}</small></span>{#if entry.resolved}<Check size={16} />{:else}<ChevronRight size={17} />{/if}</button>
-                  {:else}<a class="assistant-product-choice" href="/admin/produk"><span><strong>{product.name}</strong><small>{product.barcode}</small></span><span class="assistant-product-stock">{product.stock} {product.unit}</span></a>{/if}
+                  {:else}<a class="assistant-product-choice" href="/admin/produk"><span><strong>{product.name}</strong><small>{product.barcode}{#if product.sellPrice != null} · {rupiah(Number(product.sellPrice))}{/if}</small></span><span class="assistant-product-stock">{product.stock} {product.unit}</span></a>{/if}
                 {/each}</div>
               {/if}
+              {#if entry.reply?.preview}
+                <div class="assistant-action-preview"><strong>{entry.reply.preview.productName}</strong><dl><div><dt>Sekarang</dt><dd>{entry.reply.preview.field === 'sellPrice' ? rupiah(entry.reply.preview.before) : `${entry.reply.preview.before} ${entry.reply.preview.unit}`}</dd></div><div><dt>Setelah konfirmasi</dt><dd>{entry.reply.preview.field === 'sellPrice' ? rupiah(entry.reply.preview.after) : `${entry.reply.preview.after} ${entry.reply.preview.unit}`}</dd></div></dl>
+                  {#if !entry.resolved}<p>Periksa nama, ukuran, dan nilai. Konfirmasi berlaku 5 menit.</p><div class="assistant-confirm-buttons"><button class="primary-button" disabled={busy || sessionExpired} on:click={() => confirm(entry)}>Konfirmasi perubahan</button><button class="assistant-undo" disabled={busy} on:click={() => cancel(entry)}>Batal</button></div>{:else}<span class="assistant-action-note">Pratinjau ini sudah ditutup.</span>{/if}
+                </div>
+              {/if}
               {#if entry.reply?.change}
-                <div class="assistant-change"><span class="assistant-change-mark">{#if entry.reply.change.undone}<RotateCcw size={18} />{:else}<Check size={18} />{/if}</span><div><strong>{entry.reply.change.productName}</strong><p><span>{entry.reply.change.before}</span><span aria-label="menjadi">→</span><b>{entry.reply.change.after} {entry.reply.change.unit}</b></p></div></div>
-                {#if entry.reply.undoToken && !entry.reply.change.undone}<button class="assistant-undo" disabled={busy || sessionExpired} on:click={() => undo(entry)}><RotateCcw size={14} />Batalkan penambahan</button>{:else if entry.reply.change.undone}<span class="assistant-action-note">Penambahan telah dibatalkan</span>{/if}
+                <div class="assistant-change"><span class="assistant-change-mark">{#if entry.reply.change.undone}<RotateCcw size={18} />{:else}<Check size={18} />{/if}</span><div><strong>{entry.reply.change.productName}</strong><p><span>{entry.reply.change.field === 'sellPrice' ? rupiah(entry.reply.change.before) : entry.reply.change.before}</span><span aria-label="menjadi">→</span><b>{entry.reply.change.field === 'sellPrice' ? rupiah(entry.reply.change.after) : `${entry.reply.change.after} ${entry.reply.change.unit}`}</b></p></div></div>
+                {#if entry.reply.undoToken && !entry.reply.change.undone}<button class="assistant-undo" disabled={busy || sessionExpired} on:click={() => undo(entry)}><RotateCcw size={14} />Batalkan perubahan</button>{:else if entry.reply.change.undone}<span class="assistant-action-note">Perubahan telah dibatalkan</span>{/if}
               {/if}
               {#if entry.reply?.report}<dl class="assistant-report"><div><dt>Omzet</dt><dd>{rupiah(entry.reply.report.revenue)}</dd></div><div><dt>Laba bersih</dt><dd>{rupiah(entry.reply.report.profit)}</dd></div><div><dt>Transaksi</dt><dd>{entry.reply.report.transactions}</dd></div><div><dt>Rata-rata belanja</dt><dd>{rupiah(entry.reply.report.average)}</dd></div></dl><a class="assistant-report-link" href="/admin/transaksi">Buka riwayat transaksi <ArrowUpRight size={14} /></a>{/if}
               {#if entry.reply?.topProducts?.length}<ol class="assistant-ranking">{#each entry.reply.topProducts as product}<li><span>{product.name}<small>{product.quantity} barang terjual</small></span><strong>{rupiah(product.revenue)}</strong></li>{/each}</ol>{/if}
@@ -173,8 +192,8 @@
 
     {#if !floating}<aside class="assistant-guide" aria-label="Panduan asisten">
       <section class="assistant-quota"><div class="assistant-guide-heading"><Clock3 size={17} /><h2>Pemakaian AI toko</h2></div>{#if usage}<p class="assistant-quota-number">{usage.used}<span> / {usage.limit} permintaan</span></p><progress value={usage.used} max={usage.limit} aria-label={`${usage.used} dari ${usage.limit} permintaan AI hari ini`}></progress><p>Reset {resetLabel}</p>{:else}<p>Kuota tersedia setelah sesi terhubung.</p>{/if}<small>Ini pemakaian dari VecMart. Kuota proyek Google dapat dipakai oleh aplikasi lain juga.</small><a href="https://aistudio.google.com/rate-limit" target="_blank" rel="noreferrer">Lihat kuota Google <ArrowUpRight size={13} /></a></section>
-      <section><div class="assistant-guide-heading"><PackagePlus size={17} /><h2>Tambah stok lewat chat</h2></div><p>Sebutkan nama lengkap atau ukuran produk, lalu jumlah penambahannya.</p><button class="assistant-command-example" on:click={() => useSuggestion('Stok Aqua 600ml tambah 50 pcs')} disabled={!configured || busy || sessionExpired}>Stok Aqua 600ml tambah 50 pcs <ArrowUpRight size={14} /></button><p class="assistant-guide-note">Perintah yang jelas langsung mengubah stok. Nama yang memiliki beberapa varian akan ditanyakan terlebih dahulu.</p></section>
-      <section><div class="assistant-guide-heading"><RotateCcw size={17} /><h2>Perubahan tercatat</h2></div><p>Hasil menampilkan stok sebelum dan sesudah. Penambahan dapat dibatalkan selama 15 menit.</p><a href="/admin/stok-opname">Lihat riwayat penyesuaian <ArrowUpRight size={13} /></a></section>
+      <section><div class="assistant-guide-heading"><PackagePlus size={17} /><h2>Kelola produk lewat chat</h2></div><p>Satu perintah untuk satu produk yang sudah ada.</p>{#each ['Tambah 50 pcs Aqua 600ml', 'Kurangi stok Aqua 600ml sebanyak 2 pcs', 'Set stok Aqua 600ml menjadi 20 pcs', 'Ubah harga jual Aqua 600ml menjadi Rp 5.000'] as example}<button class="assistant-command-example" on:click={() => useSuggestion(example)} disabled={!configured || busy || sessionExpired}>{example}<ArrowUpRight size={14} /></button>{/each}<p class="assistant-guide-note">Tambah/kurangi stok langsung dijalankan setelah produk jelas. Set stok dan harga jual memerlukan konfirmasi. Produk baru tetap lewat form Produk; penjualan melalui kasir.</p></section>
+      <section><div class="assistant-guide-heading"><RotateCcw size={17} /><h2>Perubahan tercatat</h2></div><p>Perubahan dapat dibatalkan selama 15 menit. Stok tidak boleh negatif. Pembatalan harga atau stok hasil hitung ditolak jika nilainya sudah berubah lagi.</p><a href="/admin/stok-opname">Lihat penyesuaian stok <ArrowUpRight size={13} /></a></section>
     </aside>{/if}
   </div>
 </div>

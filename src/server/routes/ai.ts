@@ -5,6 +5,7 @@ import { modelName } from '../ai/gemini.js';
 import { getUsage } from '../ai/quota.js';
 import { handleChat } from '../ai/service.js';
 import { chooseProduct, undoChange } from '../ai/stock.js';
+import { chooseAction, confirmAction, undoAction } from '../ai/product-actions.js';
 
 type ErrorSet = { status?: number | string; headers: Record<string, string | number | readonly string[]> };
 function failed(error: unknown, set: ErrorSet) {
@@ -38,6 +39,27 @@ export const aiRoutes = new Elysia({ prefix: '/ai' })
       return { success: true, data: await chooseProduct(user.id, body.token, body.productId), usage: await getUsage() };
     } catch (error) { return failed(error, set); }
   }, { body: t.Object({ token: t.String({ maxLength: 16000 }), productId: t.String({ minLength: 1, maxLength: 200 }) }) })
+  .post('/choose-action', async ({ request, body, set }) => {
+    set.headers['cache-control'] = 'no-store';
+    try {
+      const user = await requireAdmin(request);
+      return { success: true, data: await chooseAction(user.id, body.token, body.productId) };
+    } catch (error) { return failed(error, set); }
+  }, { body: t.Object({ token: t.String({ maxLength: 16000 }), productId: t.String({ minLength: 1, maxLength: 200 }) }) })
+  .post('/confirm', async ({ request, body, set }) => {
+    set.headers['cache-control'] = 'no-store';
+    try {
+      const user = await requireAdmin(request);
+      return { success: true, data: await confirmAction(user.id, body.token) };
+    } catch (error) { return failed(error, set); }
+  }, { body: t.Object({ token: t.String({ maxLength: 16000 }) }) })
+  .post('/undo-action', async ({ request, body, set }) => {
+    set.headers['cache-control'] = 'no-store';
+    try {
+      const user = await requireAdmin(request);
+      return { success: true, data: await undoAction(user.id, body.token) };
+    } catch (error) { return failed(error, set); }
+  }, { body: t.Object({ token: t.String({ maxLength: 16000 }) }) })
   .post('/undo', async ({ request, body, set }) => {
     try {
       const user = await requireAdmin(request);

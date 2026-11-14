@@ -116,7 +116,7 @@ export async function candidateProducts(query: string) {
   const normalize = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '');
   const tokens = query.toLowerCase().match(/[a-z]+|\d+/g) || [];
   if (!tokens.length || query.length > 150) throw new AssistantError(422, 'PRODUCT_UNCLEAR', 'Sebutkan nama, barcode, atau SKU produk.');
-  const catalog = await db.select({ id: products.id, name: products.name, barcode: products.barcode, sku: products.sku, stock: products.stock, unit: products.unit })
+  const catalog = await db.select({ id: products.id, name: products.name, barcode: products.barcode, sku: products.sku, stock: products.stock, unit: products.unit, sellPrice: products.sellPrice })
     .from(products).where(eq(products.isActive, true)).orderBy(products.name);
   const exact = catalog.filter(product => [product.name, product.barcode, product.sku].some(value => normalize(value) === normalize(query)));
   const matches = exact.length ? exact : catalog.filter(product => tokens.every(token => normalize(`${product.name} ${product.barcode} ${product.sku}`).includes(token)));

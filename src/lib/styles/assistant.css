@@ -128,6 +128,15 @@
   .assistant-product-choice { gap: 10px; padding: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .assistant-conversation { scroll-behavior: auto; } }
+.assistant-action-preview { margin-top: 14px; padding: 14px; border: 1px solid #cbdcf0; border-radius: 10px; background: #f4f8ff; }
+.assistant-action-preview > strong { font-size: 13px; }
+.assistant-action-preview dl { margin: 12px 0; display: grid; gap: 10px; }
+.assistant-action-preview dl > div { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; }
+.assistant-action-preview dt { color: #52677f; }
+.assistant-action-preview dd { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.assistant-action-preview > p { font-size: 12px; color: #52677f; }
+.assistant-confirm-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.assistant-confirm-buttons button { min-height: 44px; font-size: 12px; }
 /* The floating assistant keeps the current page available on desktop. */
 .assistant-floating-content { height: 100%; min-height: 0; gap: 0; display: flex; flex-direction: column; }
 .assistant-floating-header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 12px; padding: 12px 18px 13px; background: #edf5ff; border-bottom: 1px solid #dce7f4; flex-shrink: 0; }

@@ -4,13 +4,14 @@ import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../src/server/db/index.js';
-import { assistantUsage, products, stockAdjustments, users } from '../src/server/db/schema.js';
+import { assistantActions, assistantUsage, products, stockAdjustments, users } from '../src/server/db/schema.js';
 import { readToken, signToken } from '../src/server/security/session.js';
 import { validateStockCommand, storeReport } from '../src/server/ai/service.js';
 import { consumeUsageInTransaction, quotaWindows } from '../src/server/ai/quota.js';
 import { increaseInTransaction, undoInTransaction, operationId, candidateProducts } from '../src/server/ai/stock.js';
 import { aiRoutes } from '../src/server/routes/ai.js';
 import { authRoutes } from '../src/server/routes/auth.js';
+import { validateProductCommand, confirmInTransaction, undoActionInTransaction, prepareAction, confirmAction, chooseAction } from '../src/server/ai/product-actions.js';
 
 after(async () => { await db.$client.end(); });
 const isCode = (code: string) => (error: unknown) => !!error && typeof error === 'object' && 'code' in error && error.code === code;
@@ -131,4 +132,96 @@ test('ambiguous names remain separate variants; sales totals are database totals
   const specific = await candidateProducts('Aqua 600ml'); assert.equal(specific.length, 1);
   const report = await storeReport({ intent: 'sales_report', dateFrom: '2026-10-01', dateTo: '2026-10-31' });
   assert.equal(report.report?.transactions, 25); assert.equal(report.report?.revenue, 876800);
+});
+
+test('expanded commands reject model quantity drift, negation, batches and unclear prices', () => {
+  assert.doesNotThrow(() => validateProductCommand('Kurangi stok Le Minerale 600ml sebanyak 2 buah', 'decrease_stock', 2));
+  assert.doesNotThrow(() => validateProductCommand('Kurangi 2 pcs Aqua 600ml', 'decrease_stock', 2));
+  assert.doesNotThrow(() => validateProductCommand('Set stok Aqua 600ml menjadi 0 pcs', 'set_stock', 0));
+  assert.doesNotThrow(() => validateProductCommand('Ubah harga jual Aqua 600ml menjadi Rp 5.000', 'update_price', 5000));
+  for (const [message, action, value] of [
+    ['Jangan kurangi stok Aqua sebanyak 2 pcs', 'decrease_stock', 2],
+    ['Kurangi stok Aqua 600ml sebanyak 2 pcs', 'decrease_stock', 600],
+    ['Kurangi stok Aqua sebanyak -2 pcs', 'decrease_stock', 2],
+    ['Kurangi 2 dus Aqua', 'decrease_stock', 2],
+    ['Tambah 2 Aqua dan kurangi 3 Indomie', 'increase_stock', 2],
+    ['Set stok Aqua menjadi 0,5 pcs', 'set_stock', 0],
+    ['Ubah harga modal Aqua menjadi Rp 5.000', 'update_price', 5000],
+    ['Ubah harga jual Aqua menjadi 5 ribu', 'update_price', 5],
+    ['Ubah harga jual Aqua menjadi Rp 0', 'update_price', 0],
+    ['Apakah bisa ubah harga jual Aqua menjadi Rp 5000?', 'update_price', 5000],
+    ['Set stok Aqua menjadi 20 pcs lalu tambah 5 pcs', 'set_stock', 20]
+  ] as const) assert.throws(() => validateProductCommand(message, action, value));
+});
+
+test('new action routes require admin authentication and signed owner-bound previews', async () => {
+  for (const path of ['confirm', 'undo-action', 'choose-action']) {
+    const response = await aiRoutes.handle(new Request(`http://localhost/ai/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'forged', productId: 'product' }) }));
+    assert.equal(response.status, 401);
+  }
+  await assert.rejects(confirmAction('other-admin', signToken('confirm-product', 'owner', {})), isCode('ADMIN_REQUIRED'));
+  await assert.rejects(chooseAction('other-admin', signToken('choose-action', 'owner', {}), 'product'), isCode('ADMIN_REQUIRED'));
+  await assert.rejects(confirmAction('owner', signToken('confirm-product', 'owner', {}, -1)), isCode('ACTION_EXPIRED'));
+});
+
+test('preview only reads a product and never changes its stock or price', async () => {
+  const [admin] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+  const [product] = await db.select().from(products).where(eq(products.isActive, true)).limit(1);
+  const result = await prepareAction(admin.id, { operationId: operationId(admin.id, randomUUID()), productIds: [product.id], action: 'set_stock', value: product.stock + 2, unit: product.unit, command: `Set stok ${product.name} menjadi ${product.stock + 2} ${product.unit}` }, product.id);
+  assert.equal(result.kind, 'confirm_action');
+  assert.equal(result.preview?.after, product.stock + 2);
+  assert.ok(result.confirmationToken);
+  const [unchanged] = await db.select().from(products).where(eq(products.id, product.id));
+  assert.equal(unchanged.stock, product.stock); assert.equal(unchanged.sellPrice, product.sellPrice);
+});
+
+test('confirmed stock and price actions are atomic, replay-safe, and undo protects later edits (rolled back)', async () => {
+  const rollback = new Error('rollback expanded actions');
+  const productId = `ai-expanded-${randomUUID()}`;
+  await assert.rejects(db.transaction(async tx => {
+    const [admin] = await tx.select().from(users).where(eq(users.role, 'admin')).limit(1);
+    await tx.insert(products).values({ id: productId, name: 'Produk uji', barcode: randomUUID(), sku: randomUUID().slice(0,20), stock: 10, unit: 'pcs', costPrice: '1000', sellPrice: '2000' });
+    const base = { operationId: operationId(admin.id, randomUUID()), productIds: [productId], productId, action: 'decrease_stock' as const, value: 2, unit: 'pcs', command: 'Kurangi stok produk uji sebanyak 2 pcs', before: 10, after: 8 };
+    const first = await confirmInTransaction(tx, admin.id, base);
+    assert.equal(first.change?.after, 8);
+    assert.equal((await confirmInTransaction(tx, admin.id, base)).change?.after, 8);
+    assert.equal((await tx.select().from(stockAdjustments).where(eq(stockAdjustments.id, `ai-action-${base.operationId}`)))[0].adjustmentQty, -2);
+    await assert.rejects(confirmInTransaction(tx, 'other-admin', base), isCode('ADMIN_REQUIRED'));
+    await tx.update(products).set({ stock: 7 }).where(eq(products.id, productId));
+    assert.equal((await undoActionInTransaction(tx, admin.id, base.operationId)).change?.after, 9);
+    assert.equal((await undoActionInTransaction(tx, admin.id, base.operationId)).change?.after, 9);
+    assert.equal((await confirmInTransaction(tx, admin.id, base)).change?.undone, true);
+
+    const set = { ...base, operationId: operationId(admin.id, randomUUID()), action: 'set_stock' as const, command: 'Set stok produk uji menjadi 0 pcs', value: 0, before: 9, after: 0 };
+    assert.equal((await confirmInTransaction(tx, admin.id, set)).change?.after, 0);
+    assert.equal((await undoActionInTransaction(tx, admin.id, set.operationId)).change?.after, 9);
+    const setAgain = { ...set, operationId: operationId(admin.id, randomUUID()), value: 20, command: 'Set stok produk uji menjadi 20 pcs', before: 9, after: 20 };
+    await confirmInTransaction(tx, admin.id, setAgain);
+    await tx.update(products).set({ stock: 19 }).where(eq(products.id, productId));
+    await assert.rejects(undoActionInTransaction(tx, admin.id, setAgain.operationId), isCode('UNDO_CONFLICT'));
+
+    const price = { ...base, operationId: operationId(admin.id, randomUUID()), action: 'update_price' as const, command: 'Ubah harga jual produk uji menjadi Rp 5.000', value: 5000, before: 2000, after: 5000 };
+    assert.equal((await confirmInTransaction(tx, admin.id, price)).change?.field, 'sellPrice');
+    assert.equal((await confirmInTransaction(tx, admin.id, price)).change?.after, 5000);
+    assert.equal((await tx.select().from(products).where(eq(products.id, productId)))[0].stock, 19);
+    assert.equal((await tx.select().from(stockAdjustments).where(eq(stockAdjustments.id, `ai-action-${price.operationId}`))).length, 0);
+    await tx.update(products).set({ sellPrice: '6000' }).where(eq(products.id, productId));
+    await assert.rejects(undoActionInTransaction(tx, admin.id, price.operationId), isCode('UNDO_CONFLICT'));
+    await tx.update(products).set({ sellPrice: '5000' }).where(eq(products.id, productId));
+    assert.equal((await undoActionInTransaction(tx, admin.id, price.operationId)).change?.after, 2000);
+
+    await assert.rejects(confirmInTransaction(tx, admin.id, { ...base, operationId: operationId(admin.id, randomUUID()) }), isCode('PRODUCT_CHANGED'));
+    await assert.rejects(confirmInTransaction(tx, admin.id, { ...base, operationId: operationId(admin.id, randomUUID()), value: 30, command: 'Kurangi stok produk uji sebanyak 30 pcs' }), isCode('INSUFFICIENT_STOCK'));
+    const expired = { ...base, operationId: operationId(admin.id, randomUUID()), before: 19, after: 17 };
+    await confirmInTransaction(tx, admin.id, expired);
+    await tx.update(assistantActions).set({ createdAt: new Date(Date.now() - 16 * 60000) }).where(eq(assistantActions.id, expired.operationId));
+    await assert.rejects(undoActionInTransaction(tx, admin.id, expired.operationId), isCode('UNDO_EXPIRED'));
+    const addition = { ...base, operationId: operationId(admin.id, randomUUID()), action: 'increase_stock' as const, command: 'Tambah 2 pcs produk uji', before: 17, after: 19 };
+    await confirmInTransaction(tx, admin.id, addition);
+    await tx.update(products).set({ stock: 1 }).where(eq(products.id, productId));
+    await assert.rejects(undoActionInTransaction(tx, admin.id, addition.operationId), isCode('UNDO_CONFLICT'));
+    throw rollback;
+  }), error => error === rollback);
+  assert.equal((await db.select().from(products).where(eq(products.id, productId))).length, 0);
+  assert.equal((await db.select().from(assistantActions).where(eq(assistantActions.productId, productId))).length, 0);
 });

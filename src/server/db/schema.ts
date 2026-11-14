@@ -227,6 +227,23 @@ export const transactionItemsRelations = relations(transactionItems, ({ one }) =
   }),
 }));
 
+// Durable idempotency and history for confirmed assistant product changes.
+export const assistantActions = pgTable('assistant_actions', {
+  id: text('id').primaryKey(),
+  actorId: text('actor_id').notNull().references(() => users.id),
+  productId: text('product_id').notNull().references(() => products.id),
+  action: text('action').notNull(),
+  command: text('command').notNull(),
+  productName: text('product_name').notNull(),
+  unit: text('unit').notNull(),
+  before: numeric('before_value', { precision: 12, scale: 2 }).notNull(),
+  after: numeric('after_value', { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  undoneAt: timestamp('undone_at'),
+  undoBefore: numeric('undo_before', { precision: 12, scale: 2 }),
+  undoAfter: numeric('undo_after', { precision: 12, scale: 2 }),
+});
+
 export const heldCarts = pgTable('held_carts', {
   id: text('id').primaryKey(),
   label: text('label').notNull(),

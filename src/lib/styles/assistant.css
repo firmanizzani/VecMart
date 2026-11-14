@@ -157,6 +157,7 @@
 .assistant-floating-content .assistant-entry { max-width: 100%; }
 .assistant-floating-content .assistant-entry.from-user { max-width: 92%; }
 .assistant-floating-content .assistant-composer { padding: 12px 14px 10px; }
+.assistant-floating-content .assistant-composer textarea { font-size: 16px; }
 .assistant-floating-content .assistant-notice { margin: 10px 12px; padding: 10px 12px; font-size: 12px; }
 .assistant-floating-content .assistant-notice a, .assistant-floating-content .assistant-notice button { margin-left: 0; }
 .assistant-floating-content .assistant-notice > div span { font-size: 11px; }
@@ -167,4 +168,18 @@
   .assistant-chat-bar > button, .assistant-header-actions > button, .assistant-send { min-width: 44px; min-height: 44px; justify-content: center; }
   .assistant-floating-content .assistant-chat-bar button { min-width: 44px; min-height: 44px; }
   .assistant-composer textarea { font-size: 16px; }
+  .assistant-floating-content .assistant-floating-header { padding: 10px 14px; }
+  .assistant-floating-content .assistant-chat-bar { padding: 0 14px; }
+  .assistant-floating-content .assistant-conversation { padding: 16px 14px; }
+  .assistant-floating-content .assistant-welcome { min-height: 0; padding: 2px 0; justify-content: flex-start; align-items: flex-start; text-align: left; }
+  .assistant-floating-content .assistant-welcome > svg { display: none; }
+  .assistant-floating-content .assistant-welcome h2 { margin-top: 0; max-width: none; font-size: 18px; }
+  .assistant-floating-content .assistant-welcome > p { margin-top: 8px; max-width: none; }
+  .assistant-floating-content .assistant-suggestions { grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 14px; gap: 8px; }
+  .assistant-floating-content .assistant-suggestions button { padding: 9px 10px; font-size: 12px; min-height: 56px; }
+  .assistant-floating-content .assistant-suggestions button svg { display: none; }
+  .assistant-floating-content .assistant-composer { padding: 10px 12px 8px; }
+  .assistant-floating-content .assistant-composer textarea { min-height: 40px; max-height: 88px; }
+  .assistant-floating-content .assistant-composer-meta { justify-content: flex-end; }
+  .assistant-floating-content .assistant-composer-meta > span:first-child { display: none; }
 }

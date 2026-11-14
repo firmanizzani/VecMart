@@ -43,7 +43,7 @@
   });
 
   function save() { try { sessionStorage.setItem(key(), JSON.stringify(messages.slice(-40))); } catch { /* Storage may be unavailable. */ } }
-  async function scrollConversation() { await tick(); if (conversation) conversation.scrollTop = conversation.scrollHeight; }
+  async function scrollConversation() { await tick(); if (conversation) conversation.scrollTop = messages.length ? conversation.scrollHeight : 0; }
   function append(entry: Omit<Entry, 'id'>) {
     messages = [...messages, { id: crypto.randomUUID(), ...entry }].slice(-40); save(); scrollConversation();
     if (entry.reply && ['stock_changed', 'stock_undone', 'product_changed', 'product_undone'].includes(entry.reply.kind)) window.dispatchEvent(new CustomEvent('vecmart:stock-changed'));
@@ -153,7 +153,7 @@
       <div class="assistant-chat-bar"><div><MessageSquare size={16} /><span>Percakapan toko</span></div><button disabled={busy || !messages.length} on:click={clearConversation} title="Bersihkan percakapan" aria-label="Bersihkan percakapan"><Trash2 size={15} /><span>Bersihkan</span></button></div>
       <div class="assistant-conversation" bind:this={conversation} role="log" aria-live="polite" aria-relevant="additions" aria-label="Pesan percakapan">
         {#if !messages.length}
-          <div class="assistant-welcome"><Bot size={34} strokeWidth={1.4} /><h2>Apa yang ingin Anda kerjakan?</h2><p>Cek kondisi toko dan sesuaikan stok. Tambah/kurangi stok langsung dijalankan; set stok dan harga jual perlu konfirmasi.</p><div class="assistant-suggestions">{#each suggestions as suggestion}<button on:click={() => useSuggestion(suggestion.text)} disabled={busy || !configured || sessionExpired}><span>{suggestion.text}</span><ChevronRight size={15} /></button>{/each}</div></div>
+          <div class="assistant-welcome"><Bot size={34} strokeWidth={1.4} /><h2>{floating ? 'Ada yang bisa dibantu?' : 'Apa yang ingin Anda kerjakan?'}</h2><p>{floating ? 'Cek stok, ringkas penjualan, atau kelola produk lewat chat.' : 'Cek kondisi toko dan sesuaikan stok. Tambah/kurangi stok langsung dijalankan; set stok dan harga jual perlu konfirmasi.'}</p><div class="assistant-suggestions">{#each suggestions as suggestion}<button on:click={() => useSuggestion(suggestion.text)} disabled={busy || !configured || sessionExpired}><span>{suggestion.text}</span><ChevronRight size={15} /></button>{/each}</div></div>
         {/if}
         {#each messages as entry (entry.id)}
           <article class="assistant-entry" class:from-user={entry.role === 'user'} class:entry-error={entry.error}>

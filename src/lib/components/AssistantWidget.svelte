@@ -1,28 +1,43 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { Bot, X } from 'lucide-svelte';
   import AssistantPanel from './AssistantPanel.svelte';
   import AssistantAvatar from './AssistantAvatar.svelte';
-  import { dialog } from '$lib/actions/dialog';
   let open = false;
   let launcher: HTMLButtonElement;
+  let visibleHeight = 0;
+  let bottomOffset = 0;
+  let keyboardOpen = false;
   function panelFocus(node: HTMLElement) {
-    const media = matchMedia('(max-width: 640px)');
-    let modal: ReturnType<typeof dialog> | undefined;
-    function sync() {
-      if (media.matches && !modal) modal = dialog(node);
-      else if (!media.matches && modal) { modal.destroy(); modal = undefined; node.setAttribute('role', 'region'); node.removeAttribute('aria-modal'); }
-    }
-    sync(); media.addEventListener('change', sync);
-    requestAnimationFrame(() => node.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus());
-    return { destroy() { media.removeEventListener('change', sync); modal?.destroy(); } };
+    node.tabIndex = -1;
+    const frame = requestAnimationFrame(() => {
+      if (matchMedia('(max-width: 640px)').matches) node.focus({ preventScroll: true });
+      else node.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus({ preventScroll: true });
+    });
+    return { destroy() { cancelAnimationFrame(frame); } };
   }
   async function close() { open = false; await tick(); launcher?.focus(); }
-  onMount(() => { if (new URL(location.href).searchParams.get('assistant') === 'open') open = true; });
+  onMount(() => {
+    const viewport = window.visualViewport;
+    function updateViewport() {
+      visibleHeight = viewport?.height ?? window.innerHeight;
+      bottomOffset = Math.max(0, window.innerHeight - visibleHeight - (viewport?.offsetTop ?? 0));
+      keyboardOpen = (viewport?.scale ?? 1) === 1 && visibleHeight < window.innerHeight - 120;
+    }
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('scroll', updateViewport);
+    if (new URL(location.href).searchParams.get('assistant') === 'open') open = true;
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('scroll', updateViewport);
+    };
+  });
 </script>
 <svelte:window on:keydown={(event) => { if (open && event.key === 'Escape') { event.preventDefault(); close(); } }} />
 {#if open}
-  <section id="vecmart-assistant-panel" class="assistant-widget-panel" use:panelFocus aria-label="Asisten VecMart"><AssistantPanel floating {close} /></section>
+  <section id="vecmart-assistant-panel" class="assistant-widget-panel" class:keyboard-open={keyboardOpen} style={`--assistant-visible-height: ${visibleHeight}px; --assistant-bottom-offset: ${bottomOffset}px`} use:panelFocus aria-label="Asisten VecMart"><AssistantPanel floating {close} /></section>
 {/if}
 <button class="assistant-launcher" bind:this={launcher} on:click={() => open ? close() : open = true} aria-label={open ? 'Tutup Asisten VecMart' : 'Buka Asisten VecMart'} aria-expanded={open} aria-controls="vecmart-assistant-panel"><AssistantAvatar size={96} mascot /><span class="assistant-launcher-label">{open ? 'Tutup asisten' : 'Asisten VecMart'}</span></button>
 
@@ -34,7 +49,11 @@
   @keyframes assistant-panel-enter { from { opacity: .7; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   @media (max-width: 640px) {
     .assistant-launcher { right: 12px; bottom: max(12px,env(safe-area-inset-bottom)); }
-    .assistant-widget-panel { inset: 0; width: 100%; height: 100dvh; border-radius: 0; border: 0; }
+    .assistant-widget-panel { right: 12px; bottom: calc(120px + env(safe-area-inset-bottom)); width: min(420px, calc(100vw - 24px)); height: min(560px, 70dvh, calc(100dvh - 144px)); }
   }
+  @media (max-height: 560px) {
+    .assistant-widget-panel { right: 12px; bottom: 12px; width: min(440px, calc(100vw - 24px)); height: calc(100dvh - 24px); }
+  }
+  .assistant-widget-panel.keyboard-open { bottom: calc(var(--assistant-bottom-offset) + 12px); height: min(560px, calc(var(--assistant-visible-height) - 24px)); }
   @media (prefers-reduced-motion: reduce) { .assistant-launcher { transition: none; } .assistant-widget-panel { animation: none; } }
 </style>

@@ -1,4 +1,10 @@
 <script lang="ts">
+  let listQuery = '';
+  $: visibleRows = members.filter(row => [row.name,row.code,row.phone].some(value => String(value || '').toLowerCase().includes(listQuery.toLowerCase())));
+  import LoadNotice from '$lib/components/LoadNotice.svelte';
+  let loadingPage = true;
+  let loadError = '';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount } from 'svelte';
   import { Plus, Phone, X } from 'lucide-svelte';
 
@@ -10,16 +16,19 @@
     phone: ''
   };
 
-  onMount(async () => {
+  async function loadPage() {
+    loadingPage = true; loadError = '';
     try {
       const res = await fetch('/api/members').then(r => r.json());
       if (res?.success && Array.isArray(res.data)) {
         members = res.data;
-      }
+      } else { throw new Error('Data tidak tersedia'); }
     } catch (e) {
-      console.warn('Failed to load members from API', e);
+      loadError = 'Data belum dapat dimuat. Periksa koneksi lalu coba lagi.';
     }
-  });
+    loadingPage = false;
+  }
+  onMount(loadPage);
 
   async function createMember() {
     if (!form.name || !form.phone) {
@@ -57,23 +66,25 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="page-content">
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-wide">Manajemen Member & Poin Loyalty</h1>
+      <h1 class="page-title">Member & poin</h1>
       <p class="text-xs text-slate-500 mt-1">Registrasi pelanggan setia & sistem akumulasi poin reward</p>
     </div>
 
-    <button on:click={() => showModal = true} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl flex items-center space-x-2 shadow-md shadow-sky-600/20">
+    <button on:click={() => showModal = true} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-2  ">
       <Plus class="w-4 h-4" />
-      <span>REGISTRASI MEMBER</span>
+      <span>Tambah member</span>
     </button>
   </div>
+  <LoadNotice loading={loadingPage} error={loadError} retry={loadPage} />
+  <div class="list-toolbar"><label class="list-search"><span class="sr-only">Cari nama, kode, atau telepon…</span><input aria-label="Cari nama, kode, atau telepon…" type="search" bind:value={listQuery} placeholder="Cari nama, kode, atau telepon…" /></label><span>{visibleRows.length} member</span></div>
 
   <!-- Rules Information Banner -->
-  <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between text-xs text-sky-900 shadow-sm">
+  <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between text-xs text-sky-900 ">
     <div class="space-y-1">
-      <span class="font-bold uppercase tracking-wider text-[11px] text-sky-800">Aturan Tier Keanggotaan (Total Pembelanjaan)</span>
+      <span class="font-semibold   text-xs text-sky-800">Aturan Tier Keanggotaan (Total Pembelanjaan)</span>
       <p class="text-slate-600">
         • <strong>BRONZE</strong>: Total belanja di bawah <strong>Rp 2.000.000</strong> (&lt; 10.000 Poin).<br/>
         • <strong>SILVER</strong>: Total belanja <strong>Rp 2.000.000 – Rp 5.000.000</strong> (10.000 – 24.999 Poin).<br/>
@@ -82,9 +93,9 @@
     </div>
   </div>
 
-  <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm overflow-x-auto">
-    <table class="w-full text-left text-xs text-slate-700">
-      <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+  <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4  overflow-x-auto">
+    <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+      <thead>
         <tr>
           <th class="p-3">Kode Member</th>
           <th class="p-3">Nama Member</th>
@@ -95,60 +106,60 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        {#each members as m}
+        {#each visibleRows as m}
           <tr class="hover:bg-slate-50">
-            <td class="p-3 font-mono font-bold text-sky-700">{m.code}</td>
-            <td class="p-3 font-bold text-slate-900">{m.name}</td>
-            <td class="p-3 text-slate-500 font-mono flex items-center space-x-1">
+            <td class="p-3 tabular-nums font-semibold text-sky-700">{m.code}</td>
+            <td class="p-3 font-semibold text-slate-900">{m.name}</td>
+            <td class="p-3 text-slate-500 tabular-nums flex items-center space-x-1">
               <Phone class="w-3.5 h-3.5" />
               <span>{m.phone}</span>
             </td>
-            <td class="p-3 text-right font-mono font-bold text-slate-900 text-sm">
+            <td class="p-3 text-right tabular-nums font-semibold text-slate-900 text-sm">
               {formatRp(m.totalSpend || 0)}
             </td>
-            <td class="p-3 text-center font-bold text-sky-600 font-mono text-sm">{m.points} pts</td>
+            <td class="p-3 text-center font-semibold text-sky-600 tabular-nums text-sm">{m.points} pts</td>
             <td class="p-3 text-center">
               {#if m.tier === 'GOLD'}
-                <span class="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-amber-100 text-amber-800 border border-amber-300">
+                <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs bg-amber-100 text-amber-800 border border-amber-300">
                   GOLD
                 </span>
               {:else if m.tier === 'SILVER'}
-                <span class="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-300">
+                <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs bg-slate-100 text-slate-700 border border-slate-300">
                   SILVER
                 </span>
               {:else}
-                <span class="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-orange-50 text-orange-800 border border-orange-200">
+                <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs bg-orange-50 text-orange-800 border border-orange-200">
                   BRONZE
                 </span>
               {/if}
             </td>
           </tr>
-        {/each}
+        {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
 {#if showModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900">Registrasi Member Baru</h3>
-        <button on:click={() => showModal = false} class="text-slate-400 hover:text-slate-700"><X class="w-5 h-5" /></button>
+        <h3 class="text-base font-semibold text-slate-900">Registrasi Member Baru</h3>
+        <button aria-label="Tutup dialog" on:click={() => showModal = false} class="text-slate-500 hover:text-slate-700"><X class="w-5 h-5" /></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="text-slate-600 font-bold">Nama Lengkap</label>
-          <input type="text" bind:value={form.name} placeholder="Contoh: Budi Santoso" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+          <label class="text-slate-600 font-semibold" for="vm-field-1">Nama Lengkap</label>
+          <input id="vm-field-1" type="text" bind:value={form.name} placeholder="Contoh: Budi Santoso" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-slate-600 font-bold">No. Telepon / WhatsApp</label>
-          <input type="text" bind:value={form.phone} placeholder="081234567890" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 font-mono" />
+          <label class="text-slate-600 font-semibold" for="vm-field-2">No. Telepon / WhatsApp</label>
+          <input id="vm-field-2" type="text" bind:value={form.phone} placeholder="081234567890" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 tabular-nums" />
         </div>
       </div>
 
-      <button on:click={createMember} disabled={isSaving} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-sky-600/20">
+      <button on:click={createMember} disabled={isSaving} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs    ">
         {isSaving ? 'MENDAFTARKAN...' : 'DAFTARKAN MEMBER'}
       </button>
     </div>

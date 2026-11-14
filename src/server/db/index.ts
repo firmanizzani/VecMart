@@ -1,7 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
+import 'dotenv/config';
 import * as schema from './schema.js';
 
 let rawUrl = (process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/pos_minimarket').trim();

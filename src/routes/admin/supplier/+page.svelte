@@ -1,4 +1,10 @@
 <script lang="ts">
+  let listQuery = '';
+  $: visibleRows = purchaseOrders.filter(row => [row.supplierName,row.poNumber].some(value => String(value || '').toLowerCase().includes(listQuery.toLowerCase())));
+  import LoadNotice from '$lib/components/LoadNotice.svelte';
+  let loadingPage = true;
+  let loadError = '';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount } from 'svelte';
   import { Truck, Plus, FileText, CheckCircle, Clock, X } from 'lucide-svelte';
 
@@ -11,16 +17,19 @@
     notes: ''
   };
 
-  onMount(async () => {
+  async function loadPage() {
+    loadingPage = true; loadError = '';
     try {
       const res = await fetch('/api/suppliers/po').then(r => r.json());
       if (res?.success && Array.isArray(res.data)) {
         purchaseOrders = res.data;
-      }
+      } else { throw new Error('Data tidak tersedia'); }
     } catch (e) {
-      console.warn('Failed to load purchase orders from API', e);
+      loadError = 'Data belum dapat dimuat. Periksa koneksi lalu coba lagi.';
     }
-  });
+    loadingPage = false;
+  }
+  onMount(loadPage);
 
   async function createPO() {
     if (!form.supplierName || form.totalAmount <= 0) {
@@ -77,28 +86,30 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="page-content">
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-wide">Supplier & Purchase Orders (PO)</h1>
-      <p class="text-xs text-slate-500 mt-1">Manajemen pemasok grosir dan pesanan barang (Stock In flow)</p>
+      <h1 class="page-title">Supplier & pesanan</h1>
+      <p class="text-xs text-slate-500 mt-1">Kelola pemasok dan pesanan pembelian barang toko.</p>
     </div>
 
-    <button on:click={() => showModal = true} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl flex items-center space-x-2 shadow-md shadow-sky-600/20">
+    <button on:click={() => showModal = true} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-2  ">
       <Plus class="w-4 h-4" />
-      <span>BUAT PURCHASE ORDER (PO)</span>
+      <span>Buat pesanan</span>
     </button>
   </div>
+  <LoadNotice loading={loadingPage} error={loadError} retry={loadPage} />
+  <div class="list-toolbar"><label class="list-search"><span class="sr-only">Cari supplier atau nomor pesanan…</span><input aria-label="Cari supplier atau nomor pesanan…" type="search" bind:value={listQuery} placeholder="Cari supplier atau nomor pesanan…" /></label><span>{visibleRows.length} pesanan</span></div>
 
   <!-- PO Table -->
-  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden p-5 space-y-4 shadow-sm">
-    <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden p-5 space-y-4 ">
+    <h2 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
       <FileText class="w-5 h-5 text-sky-600" />
       <span>Daftar Purchase Order (PO)</span>
     </h2>
 
-    <table class="w-full text-left text-xs text-slate-700">
-      <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+    <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+      <thead>
         <tr>
           <th class="p-3">No. PO</th>
           <th class="p-3">Supplier</th>
@@ -109,20 +120,20 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        {#each purchaseOrders as po}
+        {#each visibleRows as po}
           <tr class="hover:bg-slate-50">
-            <td class="p-3 font-mono font-bold text-sky-700">{po.poNumber}</td>
-            <td class="p-3 font-bold text-slate-900">{po.supplierName}</td>
+            <td class="p-3 tabular-nums font-semibold text-sky-700">{po.poNumber}</td>
+            <td class="p-3 font-semibold text-slate-900">{po.supplierName}</td>
             <td class="p-3 text-slate-500">{po.date}</td>
-            <td class="p-3 text-right font-mono font-bold text-emerald-700">{formatRp(po.totalAmount)}</td>
+            <td class="p-3 text-right tabular-nums font-semibold text-emerald-700">{formatRp(po.totalAmount)}</td>
             <td class="p-3 text-center">
               {#if po.status === 'RECEIVED'}
-                <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px] flex items-center justify-center space-x-1 w-24 mx-auto border border-emerald-200">
+                <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-semibold text-xs flex items-center justify-center space-x-1 w-24 mx-auto border border-emerald-200">
                   <CheckCircle class="w-3 h-3" />
                   <span>DITERIMA</span>
                 </span>
               {:else}
-                <span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-bold text-[10px] flex items-center justify-center space-x-1 w-24 mx-auto border border-amber-200">
+                <span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-semibold text-xs flex items-center justify-center space-x-1 w-24 mx-auto border border-amber-200">
                   <Clock class="w-3 h-3" />
                   <span>PENDING</span>
                 </span>
@@ -130,42 +141,42 @@
             </td>
             <td class="p-3 text-center">
               {#if po.status === 'PENDING'}
-                <button on:click={() => updateStatus(po.id, 'RECEIVED')} class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition shadow-sm">
+                <button on:click={() => updateStatus(po.id, 'RECEIVED')} class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition ">
                   Tandai Diterima
                 </button>
               {:else}
-                <button on:click={() => updateStatus(po.id, 'PENDING')} class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-medium transition">
+                <button on:click={() => updateStatus(po.id, 'PENDING')} class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-medium transition">
                   Ubah ke Pending
                 </button>
               {/if}
             </td>
           </tr>
-        {/each}
+        {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
 {#if showModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900">Buat Purchase Order Baru</h3>
-        <button on:click={() => showModal = false} class="text-slate-400 hover:text-slate-700"><X class="w-5 h-5" /></button>
+        <h3 class="text-base font-semibold text-slate-900">Buat Purchase Order Baru</h3>
+        <button aria-label="Tutup dialog" on:click={() => showModal = false} class="text-slate-500 hover:text-slate-700"><X class="w-5 h-5" /></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="text-slate-600 font-bold">Nama Supplier / Grosir</label>
-          <input type="text" bind:value={form.supplierName} placeholder="Contoh: PT Indofood Tbk" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+          <label class="text-slate-600 font-semibold" for="vm-field-1">Nama Supplier / Grosir</label>
+          <input id="vm-field-1" type="text" bind:value={form.supplierName} placeholder="Contoh: PT Indofood Tbk" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-slate-600 font-bold">Total Nilai Tagihan PO (Rp)</label>
-          <input type="number" bind:value={form.totalAmount} placeholder="0" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+          <label class="text-slate-600 font-semibold" for="vm-field-2">Total Nilai Tagihan PO (Rp)</label>
+          <input id="vm-field-2" type="number" bind:value={form.totalAmount} placeholder="0" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
         </div>
       </div>
 
-      <button on:click={createPO} disabled={isSaving} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-sky-600/20">
+      <button on:click={createPO} disabled={isSaving} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs    ">
         {isSaving ? 'MENYIMPAN...' : 'SIMPAN PO'}
       </button>
     </div>

@@ -1,4 +1,9 @@
 <script lang="ts">
+  import ProductImage from '$lib/components/ProductImage.svelte';
+  import LoadNotice from '$lib/components/LoadNotice.svelte';
+  let loadingPage = true;
+  let loadError = '';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount } from 'svelte';
   import { Package, Plus, Search, Edit3, Trash2, Barcode, X, Upload } from 'lucide-svelte';
 
@@ -17,7 +22,8 @@
     { id: 'cat-10', code: 'RMH',  name: 'Perlengkapan Rumah Tangga' },
   ];
 
-  onMount(async () => {
+  async function loadPage() {
+    loadingPage = true; loadError = '';
     try {
       const res = await fetch('/api/products').then(r => r.json());
       if (res?.success && Array.isArray(res.data)) {
@@ -35,11 +41,13 @@
           unit: p.unit || 'pcs',
           imageUrl: p.imageUrl || ''
         }));
-      }
+      } else { throw new Error('Data tidak tersedia'); }
     } catch (e) {
-      console.warn('Failed fetching products from API', e);
+      loadError = 'Data belum dapat dimuat. Periksa koneksi lalu coba lagi.';
     }
-  });
+    loadingPage = false;
+  }
+  onMount(loadPage);
 
   let searchQuery = '';
   let showModal = false;
@@ -62,7 +70,7 @@
     imageUrl: ''
   };
 
-  $: filtered = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.barcode.includes(searchQuery));
+  $: filtered = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.barcode || '').includes(searchQuery) || (p.sku || '').toLowerCase().includes(searchQuery.toLowerCase()));
 
   let isSkuTouched = false;
 
@@ -255,29 +263,30 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="page-content">
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-wide">Master Data Produk</h1>
+      <h1 class="page-title">Produk</h1>
       <p class="text-xs text-slate-500 mt-1">Kelola katalog barang, foto, barcode & HPP modal</p>
     </div>
 
-    <button on:click={openCreateModal} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl flex items-center space-x-2 shadow-md shadow-sky-600/20">
+    <button on:click={openCreateModal} class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-2  ">
       <Plus class="w-4 h-4" />
-      <span>TAMBAH PRODUK BARU</span>
+      <span>Tambah produk</span>
     </button>
   </div>
+  <LoadNotice loading={loadingPage} error={loadError} retry={loadPage} />
 
   <!-- Search & Filters -->
-  <div class="flex items-center space-x-3 bg-white border border-slate-200 p-3 rounded-2xl shadow-sm">
-    <Search class="w-5 h-5 text-slate-400 ml-1" />
-    <input type="text" bind:value={searchQuery} placeholder="Cari nama produk, SKU, atau scan barcode..." class="bg-transparent text-slate-900 text-sm focus:outline-none w-full placeholder:text-slate-400" />
+  <div class="product-search-toolbar">
+    <Search class="w-5 h-5 text-slate-500 shrink-0" />
+    <input aria-label="Cari nama produk, SKU, atau scan barcode..." type="text" bind:value={searchQuery} placeholder="Cari nama produk, SKU, atau scan barcode..." class="bg-transparent text-slate-900 text-sm focus:outline-none w-full placeholder:text-slate-500" />
   </div>
 
   <!-- Products Table -->
-  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-    <table class="w-full text-left text-xs text-slate-700">
-      <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden ">
+    <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+      <thead>
         <tr>
           <th class="p-3.5">Produk</th>
           <th class="p-3.5">Barcode / SKU</th>
@@ -291,72 +300,68 @@
       <tbody class="divide-y divide-slate-100">
         {#each filtered as p}
           <tr class="hover:bg-slate-50">
-            <td class="p-3.5 font-bold text-slate-900 flex items-center space-x-3">
+            <td class="p-3.5 font-semibold text-slate-900 product-identity">
               <div class="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200">
-                {#if p.imageUrl}
-                  <img src={p.imageUrl} alt={p.name} class="w-full h-full object-cover" />
-                {:else}
-                  <Package class="w-5 h-5 text-slate-400" />
-                {/if}
+                <ProductImage src={p.imageUrl || ''} name={p.name} />
               </div>
               <div>
-                <p class="font-bold text-slate-900">{p.name}</p>
-                <span class="text-[10px] text-slate-500 font-mono">{p.unit}</span>
+                <p class="font-semibold text-slate-900">{p.name}</p>
+                <span class="text-xs text-slate-500 tabular-nums">{p.unit}</span>
               </div>
             </td>
-            <td class="p-3.5 font-mono text-slate-700">
-              <div class="flex items-center space-x-1 text-sky-700 font-bold">
+            <td class="p-3.5 tabular-nums text-slate-700">
+              <div class="flex items-center space-x-1 text-sky-700 font-semibold">
                 <Barcode class="w-4 h-4" />
                 <span>{p.barcode}</span>
               </div>
-              <span class="text-[10px] text-slate-400">{p.sku}</span>
+              <span class="text-xs text-slate-500">{p.sku}</span>
             </td>
-            <td class="p-3.5"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full font-mono text-[10px] border border-slate-200">{p.category}</span></td>
-            <td class="p-3.5 text-right font-mono text-slate-500">{formatRp(p.costPrice)}</td>
-            <td class="p-3.5 text-right font-mono text-emerald-700 font-bold">{formatRp(p.sellPrice)}</td>
-            <td class="p-3.5 text-center font-bold font-mono"><span class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-100">{p.stock}</span></td>
+            <td class="p-3.5"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full tabular-nums text-xs border border-slate-200">{p.category}</span></td>
+            <td class="p-3.5 text-right tabular-nums text-slate-500">{formatRp(p.costPrice)}</td>
+            <td class="p-3.5 text-right tabular-nums text-emerald-700 font-semibold">{formatRp(p.sellPrice)}</td>
+            <td class="p-3.5 text-center font-semibold tabular-nums"><span class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-100">{p.stock}</span></td>
             <td class="p-3.5 text-center space-x-2">
-              <button on:click={() => { editingId = p.id; form = { ...p, minStockAlert: p.minStockAlert ?? 5 }; showModal = true; }} class="p-1.5 bg-slate-100 hover:bg-slate-200 text-sky-700 rounded-lg border border-slate-200">
+              <button aria-label="Edit data" on:click={() => { editingId = p.id; form = { ...p, minStockAlert: p.minStockAlert ?? 5 }; showModal = true; }} class="p-1.5 bg-slate-100 hover:bg-slate-200 text-sky-700 rounded-lg border border-slate-200">
                 <Edit3 class="w-4 h-4" />
               </button>
-              <button on:click={() => deleteProduct(p.id)} class="p-1.5 bg-slate-100 hover:bg-slate-200 text-red-600 rounded-lg border border-slate-200">
+              <button aria-label="Hapus data" on:click={() => deleteProduct(p.id)} class="p-1.5 bg-slate-100 hover:bg-slate-200 text-red-600 rounded-lg border border-slate-200">
                 <Trash2 class="w-4 h-4" />
               </button>
             </td>
           </tr>
-        {/each}
+        {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
 <!-- Modal Form Create/Edit -->
 {#if showModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900">{editingId ? 'Edit Produk' : 'Tambah Produk Baru'}</h3>
-        <button on:click={() => showModal = false} class="text-slate-400 hover:text-slate-700"><X class="w-5 h-5" /></button>
+        <h3 class="text-base font-semibold text-slate-900">{editingId ? 'Edit Produk' : 'Tambah Produk Baru'}</h3>
+        <button aria-label="Tutup dialog" on:click={() => showModal = false} class="text-slate-500 hover:text-slate-700"><X class="w-5 h-5" /></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-slate-600 font-bold">Barcode</label>
-            <input type="text" bind:value={form.barcode} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 font-mono" />
+            <label class="text-slate-600 font-semibold" for="vm-field-1">Barcode</label>
+            <input id="vm-field-1" type="text" bind:value={form.barcode} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 tabular-nums" />
           </div>
           <div>
-            <label class="text-slate-600 font-bold">Kode SKU</label>
-            <input type="text" bind:value={form.sku} on:input={() => isSkuTouched = true} placeholder="Otomatis dari nama produk" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 font-mono uppercase" />
+            <label class="text-slate-600 font-semibold" for="vm-field-2">Kode SKU</label>
+            <input id="vm-field-2" type="text" bind:value={form.sku} on:input={() => isSkuTouched = true} placeholder="Otomatis dari nama produk" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 tabular-nums " />
           </div>
         </div>
         <div>
-          <label class="text-slate-600 font-bold">Nama Produk</label>
-          <input type="text" bind:value={form.name} on:input={handleNameInput} placeholder="Contoh: Indomie Goreng Spesial 85g" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+          <label class="text-slate-600 font-semibold" for="vm-field-3">Nama Produk</label>
+          <input id="vm-field-3" type="text" bind:value={form.name} on:input={handleNameInput} placeholder="Contoh: Indomie Goreng Spesial 85g" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-slate-600 font-bold">Kategori</label>
-          <select bind:value={form.categoryId} on:change={handleCategoryChange} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1">
+          <label class="text-slate-600 font-semibold" for="vm-field-4">Kategori</label>
+          <select id="vm-field-4" bind:value={form.categoryId} on:change={handleCategoryChange} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1">
             {#each categories as cat}
               <option value={cat.id}>{cat.code} — {cat.name}</option>
             {/each}
@@ -364,30 +369,30 @@
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-slate-600 font-bold">Harga Modal (HPP)</label>
-            <input type="number" bind:value={form.costPrice} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+            <label class="text-slate-600 font-semibold" for="vm-field-5">Harga Modal (HPP)</label>
+            <input id="vm-field-5" type="number" bind:value={form.costPrice} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
           </div>
           <div>
-            <label class="text-slate-600 font-bold">Harga Jual</label>
-            <input type="number" bind:value={form.sellPrice} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+            <label class="text-slate-600 font-semibold" for="vm-field-6">Harga Jual</label>
+            <input id="vm-field-6" type="number" bind:value={form.sellPrice} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
           </div>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="text-slate-600 font-bold">Stok Awal</label>
-            <input type="number" bind:value={form.stock} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+            <label class="text-slate-600 font-semibold" for="vm-field-7">Stok Awal</label>
+            <input id="vm-field-7" type="number" bind:value={form.stock} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
           </div>
           <div>
-            <label class="text-slate-600 font-bold">Satuan (Unit)</label>
-            <input type="text" bind:value={form.unit} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+            <label class="text-slate-600 font-semibold" for="vm-field-8">Satuan (Unit)</label>
+            <input id="vm-field-8" type="text" bind:value={form.unit} class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
           </div>
           <div>
-            <label class="text-slate-600 font-bold">Alert Stok Min</label>
-            <input type="number" bind:value={form.minStockAlert} placeholder="5" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
+            <label class="text-slate-600 font-semibold" for="vm-field-9">Alert Stok Min</label>
+            <input id="vm-field-9" type="number" bind:value={form.minStockAlert} placeholder="5" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1" />
           </div>
         </div>
         <div>
-          <label class="text-slate-600 font-bold">Foto Produk (Opsional)</label>
+          <p class="text-slate-600 font-semibold">Foto Produk (Opsional)</p>
           <div class="mt-1 flex items-center gap-3">
             <!-- Preview -->
             <div class="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -405,23 +410,23 @@
                   <span class="text-xs">Mengupload...</span>
                 {:else}
                   <Upload class="w-4 h-4" />
-                  <span class="text-xs font-bold">{form.imageUrl ? 'Ganti Foto' : 'Upload Foto'}</span>
+                  <span class="text-xs font-semibold">{form.imageUrl ? 'Ganti Foto' : 'Upload Foto'}</span>
                 {/if}
                 <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" on:change={handleFileSelect} />
               </label>
-              <p class="text-[10px] text-slate-400 mt-1">JPG, PNG, WEBP · Maks. 2MB</p>
+              <p class="text-xs text-slate-500 mt-1">JPG, PNG, WEBP · Maks. 2MB</p>
               {#if uploadError}
-                <p class="text-[10px] text-red-500 mt-1">{uploadError}</p>
+                <p class="text-xs text-red-500 mt-1">{uploadError}</p>
               {/if}
               {#if form.imageUrl}
-                <button type="button" on:click={() => form.imageUrl = ''} class="text-[10px] text-red-400 hover:text-red-600 mt-1">Hapus foto</button>
+                <button type="button" on:click={() => form.imageUrl = ''} class="text-xs text-red-400 hover:text-red-600 mt-1">Hapus foto</button>
               {/if}
             </div>
           </div>
         </div>
       </div>
 
-      <button on:click={saveProduct} disabled={isSaving || isUploading} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-sky-600/20">
+      <button on:click={saveProduct} disabled={isSaving || isUploading} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl text-xs    ">
         {isSaving ? 'MENYIMPAN...' : 'SIMPAN PRODUK'}
       </button>
     </div>

@@ -13,5 +13,17 @@ VecMart is a web application for managing retail store operations, point of sale
 ## Tech Stack
 
 - **Frontend:** SvelteKit, TypeScript, Vite, Tailwind CSS, Lucide Svelte, Chart.js
-- **Backend:** Bun, ElysiaJS, Drizzle ORM, PostgreSQL (Via NeonDB)
+- **Backend:** ElysiaJS (served through SvelteKit), Drizzle ORM, PostgreSQL (Via NeonDB)
 - **Deployment:** Vercel
+
+## Running locally
+
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env` if you do not already have one. Set `DATABASE_URL` to your PostgreSQL connection string. You can use Neon or a local PostgreSQL database.
+3. Run `npm run dev` and open the local URL printed in the terminal (normally `http://localhost:5173`).
+
+Frontend and backend run in the same process. SvelteKit serves the Elysia backend at `/api`; no separate server on port 3000 is required. Check `http://localhost:5173/api` for the API status. Database-backed endpoints also require a reachable database with the application's tables.
+
+For a new, empty database, run `npm run db:migrate`, then `npm run db:seed` to populate demo data. Run the seed only against a development database; review `src/server/db/seed.ts` before using it with existing data.
+
+If `/api` works but login or product requests fail, check `DATABASE_URL`, database connectivity, and whether migrations have been applied. Restart the dev server after changing `.env`.

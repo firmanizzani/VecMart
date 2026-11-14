@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ProductImage from '$lib/components/ProductImage.svelte';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
   import {
@@ -34,9 +36,19 @@
     Tag,
     X,
     CheckCircle2,
-    Coins
+    Coins,
+    Package,
+    ShoppingBag,
+    ChevronRight
   } from 'lucide-svelte';
 
+  let showMobileCart = false;
+  let isLoadingProducts = true;
+  let catalogError = '';
+  let searchInput: HTMLInputElement;
+  let barcodeField: HTMLInputElement;
+  let holdName = '';
+  let showHoldName = false;
   let searchQuery = '';
   let selectedCategory = 'All';
   let barcodeInput = '';
@@ -425,10 +437,12 @@
   let products: ProductItem[] = [];
 
 
-  onMount(async () => {
+  async function loadProducts() {
+    isLoadingProducts = true;
+    catalogError = '';
     try {
       const res = await fetch('/api/products').then(r => r.json());
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res?.success && Array.isArray(res.data)) {
         products = res.data.map((p: any) => ({
           id: p.id,
           barcode: p.barcode,
@@ -437,14 +451,17 @@
           costPrice: Number(p.costPrice || 0),
           sellPrice: Number(p.sellPrice),
           stock: Number(p.stock),
-          image: '🛒',
+          image: '',
           imageUrl: p.imageUrl
         }));
-      }
+      } else { throw new Error('Produk tidak dapat dimuat.'); }
     } catch (e) {
-      console.warn('Using default product list', e);
-    }
+      catalogError = 'Katalog belum dapat dimuat. Periksa koneksi lalu coba lagi.';
+    } finally { isLoadingProducts = false; }
+  }
 
+  onMount(async () => {
+    await loadProducts();
     try {
       const resM = await fetch('/api/members').then(r => r.json());
       if (resM?.success && Array.isArray(resM.data)) {
@@ -617,218 +634,67 @@
   }
 </script>
 
-<div class="flex-1 flex overflow-hidden bg-slate-50 h-full">
-  <!-- LEFT: Tap-Tap Product Catalog & Barcode Search (Light Theme) -->
-  <div class="flex-1 flex flex-col border-r border-slate-200 p-4 space-y-4 overflow-hidden bg-slate-50 h-full">
-    <!-- Top Search & Barcode Bar -->
-    <div class="flex items-center space-x-3 shrink-0">
-      <div class="relative flex-1">
-        <Search class="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Cari nama produk / ketik barcode..."
-          class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 shadow-sm transition-all"
-        />
-      </div>
 
-      <!-- Barcode Scanner Input -->
-      <form on:submit|preventDefault={handleBarcodeSubmit} class="flex items-center space-x-2 bg-white border border-slate-300 rounded-xl px-3 py-1.5 shadow-sm">
-        <Barcode class="w-5 h-5 text-sky-600" />
-        <input
-          type="text"
-          bind:value={barcodeInput}
-          placeholder="Scan Barcode (Enter)"
-          class="bg-transparent text-slate-900 text-sm focus:outline-none w-44 font-mono placeholder:text-slate-400"
-        />
-      </form>
+<svelte:window on:keydown={(e) => {
+  if (e.key === 'Escape') { showMobileCart = false; showHoldName = false; }
+  if (e.key === 'F2') { e.preventDefault(); searchInput?.focus(); }
+  if (e.key === 'F4') { e.preventDefault(); barcodeField?.focus(); }
+  if (e.key === 'F8' && $cartItems.length && !showPaymentModal && !showReceiptModal && !showHoldModal && !showShiftModal && !showAddMemberModal && !showSessionRequiredModal && !showHoldName) { e.preventDefault(); if (!$shiftStore.isClockedIn) { showSessionRequiredModal = true; return; } paidAmount = $grandTotal; showPaymentModal = true; }
+}} />
+<div class="pos-workspace">
+  <section class="pos-catalog" aria-label="Katalog produk">
+    <div class="catalog-heading"><div><h1>Kasir</h1><p>Pilih produk untuk memulai transaksi.</p></div><span class="catalog-count">{filteredProducts.length} produk</span></div>
+    <div class="catalog-search-row">
+      <div class="catalog-search"><Search size={18} /><input bind:this={searchInput} aria-label="Cari produk" type="search" bind:value={searchQuery} placeholder="Cari nama produk atau barcode…" /><kbd>F2</kbd></div>
+      <form on:submit|preventDefault={handleBarcodeSubmit} class="barcode-search"><Barcode size={20} /><input bind:this={barcodeField} aria-label="Scan barcode lalu tekan Enter" type="text" bind:value={barcodeInput} placeholder="Scan barcode" /><kbd>F4</kbd></form>
     </div>
-
-    <!-- Category Filter Tabs -->
-    <div class="flex space-x-2 overflow-x-auto pb-1 scrollbar-none shrink-0">
-      {#each categories as cat}
-        <button
-          on:click={() => (selectedCategory = cat)}
-          class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all {selectedCategory === cat ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}"
-        >
-          {cat}
-        </button>
-      {/each}
+    <div class="catalog-categories" aria-label="Kategori produk">
+      {#each categories as cat}<button on:click={() => selectedCategory = cat} class:chosen={selectedCategory === cat} aria-pressed={selectedCategory === cat}>{cat === 'All' ? 'Semua produk' : cat}</button>{/each}
     </div>
-
-    <!-- Product Tap-Tap Grid (Scrollable Container) -->
-    <div class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 pr-1 min-h-0">
-      {#each filteredProducts as p}
-        <button
-          on:click={() => addToCart(p)}
-          class="bg-white hover:border-sky-500 border border-slate-200 p-2.5 rounded-2xl flex flex-col justify-between text-left transition-all group relative shadow-sm hover:shadow-md active:scale-[0.98] overflow-hidden"
-        >
-          <!-- Product Image Container -->
-          <div class="w-full h-28 bg-slate-100 rounded-xl overflow-hidden relative mb-2.5 flex items-center justify-center border border-slate-100 group-hover:border-sky-100 transition-colors">
-            {#if p.imageUrl}
-              <img
-                src={p.imageUrl}
-                alt={p.name}
-                loading="eager"
-                decoding="async"
-                fetchpriority="high"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-            {:else}
-              <span class="text-4xl group-hover:scale-110 transition-transform duration-300">📦</span>
-            {/if}
-
-
-            <!-- Overlay Badge: Category -->
-            <span class="absolute top-1.5 right-1.5 bg-white/95 backdrop-blur-sm text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded-full border border-slate-200 shadow-sm z-10">
-              {p.category}
-            </span>
-
-            <!-- Overlay Badge: Stock -->
-            <span class="absolute bottom-1.5 left-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 {p.stock <= 5 ? 'bg-red-500 text-white' : 'bg-slate-900/80 text-white'}">
-              Stok: {p.stock}
-            </span>
-          </div>
-
-          <!-- Product Details -->
-          <div class="flex-1 flex flex-col justify-between">
-            <div>
-              <h3 class="text-xs font-bold text-slate-800 line-clamp-2 mb-1 group-hover:text-sky-600 transition-colors leading-snug">{p.name}</h3>
-              <p class="text-[10px] text-slate-400 font-mono flex items-center space-x-1 mb-2">
-                <Barcode class="w-3 h-3 text-slate-400 shrink-0" />
-                <span class="truncate">{p.barcode}</span>
-              </p>
-            </div>
-
-            <!-- Price & Quick Add Button Footer -->
-            <div class="flex items-center justify-between border-t border-slate-100 pt-2 mt-auto">
-              <div>
-                <span class="text-[10px] text-slate-400 font-semibold block uppercase">Harga Jual</span>
-                <span class="text-sm font-black text-sky-700 leading-none">{formatRp(p.sellPrice)}</span>
-              </div>
-              <div class="bg-sky-600 text-white p-1.5 rounded-xl shadow-md shadow-sky-600/20 group-hover:bg-sky-700 transition-colors">
-                <Plus class="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-        </button>
-      {/each}
+    <div class="catalog-results" aria-busy={isLoadingProducts}>
+      {#if isLoadingProducts}<div class="catalog-empty" role="status"><span class="loading-wheel"></span><h2>Memuat katalog</h2><p>Menyiapkan produk toko Anda.</p></div>
+      {:else if catalogError}<div class="catalog-empty" role="alert"><Package size={32} /><h2>Katalog belum tersedia</h2><p>{catalogError}</p><button class="primary-button" on:click={loadProducts}>Coba lagi</button></div>
+      {:else if filteredProducts.length === 0}<div class="catalog-empty"><Search size={32} /><h2>{products.length ? 'Produk tidak ditemukan' : 'Katalog masih kosong'}</h2><p>{products.length ? 'Coba nama lain atau pilih kategori berbeda.' : 'Tambahkan produk melalui halaman admin untuk mulai berjualan.'}</p>{#if products.length}<button class="primary-button" on:click={() => { searchQuery = ''; selectedCategory = 'All'; }}>Tampilkan semua produk</button>{:else if $authStore?.role === 'admin'}<a href="/admin/produk" class="primary-button">Kelola produk</a>{/if}</div>
+      {:else}<div class="product-grid">
+        {#each filteredProducts as p}<button class="product-card" disabled={p.stock <= 0} on:click={() => addToCart(p)} aria-label={'Tambah ' + p.name + ', ' + formatRp(p.sellPrice)}>
+          <div class="product-photo"><ProductImage src={p.imageUrl || ''} name={p.name} /><span class="product-stock" class:low={p.stock <= 5}>{p.stock <= 0 ? 'Habis' : 'Stok ' + p.stock}</span></div>
+          <div class="product-info"><span class="product-category">{p.category}</span><h2>{p.name}</h2><div class="product-price"><strong>{formatRp(p.sellPrice)}</strong><span class="product-add"><Plus size={16} /></span></div></div>
+        </button>{/each}
+      </div>{/if}
     </div>
-  </div>
-
-  <!-- RIGHT: Cart, Actions & Checkout Panel (Light Theme) -->
-  <div class="w-[420px] bg-white flex flex-col justify-between p-4 space-y-4 border-l border-slate-200 shadow-sm h-full overflow-hidden">
-    <!-- Header Actions (Hold & Shift) -->
-    <div class="flex items-center justify-between border-b border-slate-200 pb-3 shrink-0">
-      <div class="flex items-center space-x-2">
-        <span class="text-base font-bold text-slate-900">Keranjang Belanja</span>
-        <span class="bg-sky-100 text-sky-700 text-xs px-2.5 py-0.5 rounded-full font-bold ml-1">{ $cartItems.length } Item</span>
-      </div>
-
-      <div class="flex items-center space-x-3 pl-4">
-        <!-- Shift Modal Button -->
-        <button
-          on:click={() => { showShiftModal = true; fetchLastCloseoutCash(); }}
-          class="px-3 py-1.5 rounded-xl border text-[11px] font-bold flex items-center space-x-1.5 shadow-sm transition-all {$shiftStore.isClockedIn ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 animate-pulse'}"
-        >
-          <Clock class="w-3.5 h-3.5 {$shiftStore.isClockedIn ? 'text-emerald-600' : 'text-amber-600'}" />
-          {#if $shiftStore.isClockedIn}
-            <span>{$shiftStore.shiftId || ''}</span>
-            <span class="inline-block w-1 h-1 rounded-full bg-emerald-500 mx-0.5"></span>
-            <span>{($authStore?.name || $shiftStore.cashierName || 'Kasir').split(' ')[0]}</span>
-          {:else}
-            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span>Mulai Shift</span>
-          {/if}
-        </button>
-
-        <!-- Hold Carts List Modal -->
-        <button on:click={() => (showHoldModal = true)} class="p-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl border border-slate-200 text-xs font-semibold flex items-center space-x-1 relative shadow-sm">
-          <PauseCircle class="w-4 h-4 text-sky-600" />
-          <span>Hold</span>
-          {#if $heldCartsStore.length > 0}
-            <span class="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{ $heldCartsStore.length }</span>
-          {/if}
-        </button>
-      </div>
+    <div class="catalog-footer"><span>Harga dalam rupiah</span><span class="hidden sm:inline">F2 Cari · F4 Barcode · F8 Bayar</span></div>
+  </section>
+  <aside class="pos-cart" class:mobile-cart-open={showMobileCart} aria-label="Keranjang transaksi">
+    <div class="cart-heading"><div><h2>Transaksi berjalan</h2><span>{$cartItems.reduce((sum, item) => sum + item.quantity, 0)} barang · {$cartItems.length} jenis produk</span></div><button class="icon-button cart-close" aria-label="Tutup keranjang" on:click={() => showMobileCart = false}><X size={20} /></button></div>
+    <div class="cart-tools"><button on:click={() => { showShiftModal = true; fetchLastCloseoutCash(); }}><Clock size={16} /><span>{$shiftStore.isClockedIn ? 'Kelola sesi' : 'Mulai sesi kasir'}</span><span class="tool-status" class:running={$shiftStore.isClockedIn}></span></button><button on:click={() => showHoldModal = true}><PauseCircle size={16} />Ditahan{#if $heldCartsStore.length}<span class="hold-count">{$heldCartsStore.length}</span>{/if}</button></div>
+    <div class="cart-items">
+      {#if !$cartItems.length}<div class="cart-empty"><ShoppingBag size={36} strokeWidth={1.25} /><h3>Belum ada belanjaan</h3><p>Pilih produk di katalog atau scan barcode untuk menambahkannya.</p></div>
+      {:else}{#each $cartItems as item}<div class="cart-item"><div class="cart-item-name"><h3>{item.name}</h3><span>{formatRp(item.sellPrice)} / barang</span></div><div class="cart-item-bottom"><div class="quantity-control"><button aria-label={'Kurangi ' + item.name} on:click={() => updateQuantity(item.id, item.quantity - 1)}><Minus size={14} /></button><span>{item.quantity}</span><button aria-label={'Tambah ' + item.name} on:click={() => updateQuantity(item.id, item.quantity + 1)}><Plus size={14} /></button></div><strong>{formatRp(item.sellPrice * item.quantity)}</strong><button class="remove-item" aria-label={'Hapus ' + item.name} on:click={() => updateQuantity(item.id, 0)}><Trash2 size={15} /></button></div></div>{/each}{/if}
     </div>
-
-    <!-- Cart Item List (Scrollable Area) -->
-    <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
-      {#if $cartItems.length === 0}
-        <div class="h-full flex flex-col items-center justify-center text-center text-slate-400 p-6 space-y-2">
-          <Barcode class="w-12 h-12 stroke-[1.5] text-slate-300 animate-pulse" />
-          <p class="text-sm font-semibold text-slate-600">Keranjang masih kosong</p>
-          <p class="text-xs text-slate-400">Klik produk di katalog atau scan barcode untuk menambah belanjaan</p>
-        </div>
-      {:else}
-        {#each $cartItems as item}
-          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
-            <div class="flex-1 pr-2">
-              <h4 class="text-xs font-bold text-slate-800 line-clamp-1">{item.name}</h4>
-              <p class="text-xs text-sky-700 font-bold mt-0.5">{formatRp(item.sellPrice)}</p>
-            </div>
-
-            <!-- Qty Stepper -->
-            <div class="flex items-center space-x-2">
-              <button on:click={() => updateQuantity(item.id, item.quantity - 1)} class="p-1 bg-white hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-lg shadow-sm">
-                <Minus class="w-3.5 h-3.5" />
-              </button>
-              <span class="text-xs font-bold text-slate-900 min-w-[20px] text-center">{item.quantity}</span>
-              <button on:click={() => updateQuantity(item.id, item.quantity + 1)} class="p-1 bg-white hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-lg shadow-sm">
-                <Plus class="w-3.5 h-3.5" />
-              </button>
-              <button on:click={() => updateQuantity(item.id, 0)} class="p-1 text-red-500 hover:text-red-700 ml-1">
-                <Trash2 class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-
-    <!-- Summary & Checkout Footer (ALWAYS FIXED AT BOTTOM) -->
-    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm shrink-0">
-      <div class="space-y-1.5 text-xs text-slate-600">
-        <div class="flex justify-between">
-          <span>Subtotal</span>
-          <span class="text-slate-900 font-semibold">{formatRp($subtotal)}</span>
-        </div>
-        {#if $discountTotal > 0}
-          <div class="flex justify-between text-amber-600 font-semibold">
-            <span>Diskon Promo</span>
-            <span>-{formatRp($discountTotal)}</span>
-          </div>
-        {/if}
-        <div class="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
-          <span>TOTAL BAYAR</span>
-          <span class="text-sky-700 font-black">{formatRp($grandTotal)}</span>
-        </div>
-      </div>
-
-      <!-- Member Selector -->
+    <div class="cart-checkout">
+      <div class="cart-member">      <!-- Member Selector -->
       <div class="pt-2 border-t border-slate-200 space-y-1.5">
         <div class="flex items-center justify-between">
-          <label class="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+          <p class="text-xs font-semibold text-slate-700 flex items-center space-x-1">
             <UserCheck class="w-3.5 h-3.5 text-sky-600" />
             <span>Member Loyalitas</span>
-          </label>
-          <button on:click={() => showAddMemberModal = true} class="text-[10px] text-sky-600 font-bold hover:underline flex items-center space-x-0.5">
+          </p>
+          <button on:click={() => showAddMemberModal = true} class="text-xs text-sky-600 font-semibold hover:underline flex items-center space-x-0.5">
             <Plus class="w-3 h-3" />
             <span>Member Baru</span>
           </button>
         </div>
-        <select bind:value={selectedMemberId} class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-600">
+        <select aria-label="Pilih member" bind:value={selectedMemberId} class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-600">
           <option value="">-- Non-Member (Umum) --</option>
           {#each members as m}
             <option value={m.id}>{m.name} ({m.code}) - {m.points} pts</option>
           {/each}
         </select>
         {#if selectedMember}
-          <div class="space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[11px] text-amber-900">
+          <div class="space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl p-2 text-xs text-amber-900">
             <div class="flex justify-between items-center font-medium">
               <span>Tier: <strong>{selectedMember.tier || 'BRONZE'}</strong> ({selectedMember.points || 0} pts)</span>
-              <span class="text-emerald-700 font-bold">+{earnedPoints} pts</span>
+              <span class="text-emerald-700 font-semibold">+{earnedPoints} pts</span>
             </div>
 
             <!-- Point Redeem Box -->
@@ -836,7 +702,7 @@
               <button
                 type="button"
                 on:click={toggleRedeemPoints}
-                class="px-2 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1 transition-all {isUsingPointDiscount ? 'bg-amber-600 text-white shadow-sm' : 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-100'}"
+                class="px-2 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors {isUsingPointDiscount ? 'bg-amber-600 text-white ' : 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-100'}"
               >
                 <Coins class="w-3 h-3" />
                 <span>{isUsingPointDiscount ? 'Gunakan Poin (Aktif)' : 'Tukar Poin Diskon'}</span>
@@ -844,15 +710,15 @@
 
               {#if isUsingPointDiscount}
                 <div class="flex items-center space-x-1">
-                  <input
+                  <input aria-label="Nilai"
                     type="number"
                     bind:value={redeemPointsInput}
                     on:input={onRedeemPointsChange}
                     max={Math.min(selectedMember.points || 0, $subtotal)}
                     min={0}
-                    class="w-16 bg-white border border-amber-300 text-slate-900 text-right px-1.5 py-0.5 rounded text-[11px] font-mono font-bold focus:outline-none"
+                    class="w-16 bg-white border border-amber-300 text-slate-900 text-right px-1.5 py-0.5 rounded text-xs tabular-nums font-semibold focus:outline-none"
                   />
-                  <span class="text-[10px] text-amber-800 font-bold">pts (-{formatRp($memberPointDiscount)})</span>
+                  <span class="text-xs text-amber-800 font-semibold">pts (-{formatRp($memberPointDiscount)})</span>
                 </div>
               {/if}
             </div>
@@ -860,91 +726,64 @@
         {/if}
       </div>
 
-      <!-- Action Buttons -->
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button
-          disabled={$cartItems.length === 0}
-          on:click={() => {
-            const label = prompt('Masukkan nama/catatan Hold Cart:');
-            if (label) holdCurrentCart(label);
-          }}
-          class="py-2.5 bg-white hover:bg-slate-100 border border-slate-300 disabled:opacity-50 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center space-x-1 shadow-sm"
-        >
-          <PauseCircle class="w-4 h-4 text-sky-600" />
-          <span>HOLD CART</span>
-        </button>
-
-        <button
-          disabled={$cartItems.length === 0}
-          on:click={() => {
-            if (!$shiftStore.isClockedIn) {
-              showSessionRequiredModal = true;
-              return;
-            }
-            paidAmount = $grandTotal;
-            showPaymentModal = true;
-          }}
-          class="py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-1 shadow-md shadow-emerald-600/20"
-        >
-          <CreditCard class="w-4 h-4" />
-          <span>BAYAR (F8)</span>
-        </button>
-
-      </div>
-    </div>
-  </div>
 </div>
-
+      <div class="cart-totals"><div><span>Subtotal</span><span>{formatRp($subtotal)}</span></div>{#if $discountTotal > 0}<div class="discount"><span>Diskon</span><span>−{formatRp($discountTotal)}</span></div>{/if}<div class="cart-grand-total"><span>Total bayar</span><strong>{formatRp($grandTotal)}</strong></div></div>
+      <div class="checkout-actions"><button class="hold-button" disabled={!$cartItems.length} on:click={() => { holdName = ''; showHoldName = true; }} aria-label="Tahan transaksi"><PauseCircle size={19} /></button><button aria-label="Buka detail" class="primary-button pay-button" disabled={!$cartItems.length} on:click={() => { if (!$shiftStore.isClockedIn) { showSessionRequiredModal = true; return; } paidAmount = $grandTotal; showPaymentModal = true; }}><span>Bayar {formatRp($grandTotal)}</span><ChevronRight size={18} /></button></div>
+    </div>
+  </aside>
+</div>
+<button aria-label="Buka detail" class="mobile-cart-summary" on:click={() => showMobileCart = true}><span><ShoppingBag size={18} />{$cartItems.reduce((sum, item) => sum + item.quantity, 0)} barang</span><strong>{formatRp($grandTotal)}</strong><ChevronRight size={18} /></button>
+{#if showHoldName}<div class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4"><div use:dialog class="bg-white rounded-2xl p-6 w-full max-w-sm"><div class="flex items-center justify-between mb-5"><h2 class="text-lg font-semibold">Tahan transaksi</h2><button class="icon-button" aria-label="Tutup dialog" on:click={() => showHoldName = false}><X size={20} /></button></div><form on:submit|preventDefault={() => { if (holdName.trim()) { holdCurrentCart(holdName.trim()); showHoldName = false; showMobileCart = false; } }}><div class="field"><label for="hold-name">Nama atau catatan transaksi</label><input id="hold-name" bind:value={holdName} placeholder="Contoh: Belanja Bu Sari" required /></div><button class="primary-button w-full mt-5" type="submit">Simpan transaksi</button></form></div></div>{/if}
 <!-- MODAL 1: PAYMENT MODAL (Light Theme) -->
 {#if showPaymentModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-        <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+        <h3 class="text-lg font-semibold text-slate-900 flex items-center space-x-2">
           <DollarSign class="w-5 h-5 text-emerald-600" />
           <span>Pembayaran Kasir</span>
         </h3>
-        <button on:click={() => (showPaymentModal = false)} class="text-slate-400 hover:text-slate-700">
+        <button aria-label="Tutup dialog" on:click={() => (showPaymentModal = false)} class="text-slate-500 hover:text-slate-700">
           <X class="w-5 h-5" />
         </button>
       </div>
 
       <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-1">
-        <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Tagihan</span>
-        <div class="text-3xl font-black text-sky-700">{formatRp($grandTotal)}</div>
+        <span class="text-xs text-slate-500 font-semibold  ">Total Tagihan</span>
+        <div class="text-3xl font-semibold text-sky-700">{formatRp($grandTotal)}</div>
         {#if $discountTotal > 0}
-          <div class="text-xs text-amber-600 font-bold mt-1">Diskon Promo: -{formatRp($discountTotal)} (Subtotal: {formatRp($subtotal)})</div>
+          <div class="text-xs text-amber-600 font-semibold mt-1">Diskon Promo: -{formatRp($discountTotal)} (Subtotal: {formatRp($subtotal)})</div>
         {/if}
       </div>
 
       <!-- Kode Promo Section -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-600 flex items-center space-x-1">
+          <p class="text-xs font-semibold text-slate-600 flex items-center space-x-1">
             <Tag class="w-3.5 h-3.5 text-amber-600" />
             <span>Kode Promo / Kupon Diskon</span>
-          </label>
+          </p>
           {#if $appliedPromo}
-            <button on:click={removePromo} class="text-[11px] text-red-600 font-bold hover:underline">Hapus Promo</button>
+            <button on:click={removePromo} class="text-xs text-red-600 font-semibold hover:underline">Hapus Promo</button>
           {/if}
         </div>
         {#if $appliedPromo}
-          <div class="flex items-center justify-between bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-xs text-amber-900 font-bold">
+          <div class="flex items-center justify-between bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-xs text-amber-900 font-semibold">
             <div class="flex items-center space-x-2">
               <Tag class="w-4 h-4 text-amber-600" />
               <span>{$appliedPromo.code} ({$appliedPromo.title})</span>
             </div>
-            <span class="text-emerald-700 font-black">-{formatRp($discountTotal)}</span>
+            <span class="text-emerald-700 font-semibold">-{formatRp($discountTotal)}</span>
           </div>
         {:else}
           <div class="flex space-x-2">
-            <input
+            <input aria-label="Contoh: HEMAT10"
               type="text"
               bind:value={promoInput}
               placeholder="Contoh: HEMAT10"
-              class="flex-1 bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:border-sky-600"
+              class="flex-1 bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs tabular-nums  focus:outline-none focus:border-sky-600"
             />
-            <button on:click={applyPromoCode} class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm">
+            <button on:click={applyPromoCode} class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl ">
               PAKAI PROMO
             </button>
           </div>
@@ -953,25 +792,25 @@
 
       <!-- Payment Method Selection -->
       <div class="space-y-2">
-        <label class="text-xs font-bold text-slate-600">Metode Pembayaran</label>
+        <p class="text-xs font-semibold text-slate-600">Metode Pembayaran</p>
         <div class="grid grid-cols-3 gap-2">
           <button
             on:click={() => (paymentMethod = 'CASH')}
-            class="py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all {paymentMethod === 'CASH' ? 'bg-sky-600 border-sky-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600'}"
+            class="py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-colors {paymentMethod === 'CASH' ? 'bg-sky-600 border-sky-600 text-white ' : 'bg-slate-50 border-slate-200 text-slate-600'}"
           >
             <DollarSign class="w-4 h-4" />
             <span>TUNAI</span>
           </button>
           <button
             on:click={() => (paymentMethod = 'QRIS')}
-            class="py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all {paymentMethod === 'QRIS' ? 'bg-sky-600 border-sky-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600'}"
+            class="py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-colors {paymentMethod === 'QRIS' ? 'bg-sky-600 border-sky-600 text-white ' : 'bg-slate-50 border-slate-200 text-slate-600'}"
           >
             <QrCode class="w-4 h-4" />
             <span>QRIS</span>
           </button>
           <button
             on:click={() => (paymentMethod = 'DEBIT')}
-            class="py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all {paymentMethod === 'DEBIT' ? 'bg-sky-600 border-sky-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600'}"
+            class="py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-colors {paymentMethod === 'DEBIT' ? 'bg-sky-600 border-sky-600 text-white ' : 'bg-slate-50 border-slate-200 text-slate-600'}"
           >
             <CreditCard class="w-4 h-4" />
             <span>DEBIT</span>
@@ -982,32 +821,32 @@
       <!-- Quick Cash Buttons -->
       {#if paymentMethod === 'CASH'}
         <div class="space-y-2">
-          <label class="text-xs font-bold text-slate-600">Uang Pas & Quick Cash</label>
+          <p class="text-xs font-semibold text-slate-600">Uang Pas & Quick Cash</p>
           <div class="grid grid-cols-4 gap-2">
-            <button on:click={() => handleQuickPay($grandTotal)} class="py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-200">Uang Pas</button>
-            <button on:click={() => handleQuickPay(20000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200">Rp 20.000</button>
-            <button on:click={() => handleQuickPay(50000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200">Rp 50.000</button>
-            <button on:click={() => handleQuickPay(100000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200">Rp 100.000</button>
+            <button on:click={() => handleQuickPay($grandTotal)} class="py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-xl border border-emerald-200">Uang Pas</button>
+            <button on:click={() => handleQuickPay(20000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200">Rp 20.000</button>
+            <button on:click={() => handleQuickPay(50000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200">Rp 50.000</button>
+            <button on:click={() => handleQuickPay(100000)} class="py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200">Rp 100.000</button>
           </div>
 
           <div class="pt-2">
-            <label class="text-xs font-bold text-slate-600">Nominal Diterima (Rp)</label>
-            <input
+            <label class="text-xs font-semibold text-slate-600" for="vm-field-1">Nominal Diterima (Rp)</label>
+            <input id="vm-field-1"
               type="number"
               bind:value={paidAmount}
-              class="w-full bg-white border border-slate-300 text-slate-900 text-lg font-mono font-bold rounded-xl px-4 py-2.5 mt-1 focus:outline-none focus:border-sky-600 shadow-sm"
+              class="w-full bg-white border border-slate-300 text-slate-900 text-lg tabular-nums font-semibold rounded-xl px-4 py-2.5 mt-1 focus:outline-none focus:border-sky-600 "
             />
           </div>
 
           <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm">
             <span class="text-slate-600 font-semibold">Kembalian</span>
-            <span class="text-emerald-600 font-bold text-lg">{formatRp(changeAmount)}</span>
+            <span class="text-emerald-600 font-semibold text-lg">{formatRp(changeAmount)}</span>
           </div>
         </div>
       {:else if paymentMethod === 'QRIS'}
         <!-- Dynamic QRIS QR Code Display -->
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center flex flex-col items-center justify-center space-y-3">
-          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 ">
             <img
               src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=00020101021126580014ID.GO.QRIS.WWW01189360091100000000005204581253033605802ID5913POS%20MINIMARKET6007JAKARTA6304ABCD"
               alt="QRIS Code"
@@ -1015,21 +854,21 @@
             />
           </div>
           <div>
-            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider block">Scan QRIS Semua Pembayaran</span>
-            <p class="text-[11px] text-slate-500 mt-0.5">Gopay, OVO, ShopeePay, DANA, BCA Mobile, Mandiri LIVIN, dll.</p>
+            <span class="text-xs font-semibold text-slate-700   block">Scan QRIS Semua Pembayaran</span>
+            <p class="text-xs text-slate-500 mt-0.5">Gopay, OVO, ShopeePay, DANA, BCA Mobile, Mandiri LIVIN, dll.</p>
           </div>
         </div>
       {:else if paymentMethod === 'DEBIT'}
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center space-y-2">
           <CreditCard class="w-10 h-10 text-sky-600 mx-auto" />
-          <p class="text-xs font-bold text-slate-700">Gesek / Dip Kartu pada Mesin EDC</p>
-          <p class="text-[11px] text-slate-500">BCA, Mandiri, BRI, BNI, dll.</p>
+          <p class="text-xs font-semibold text-slate-700">Gesek / Dip Kartu pada Mesin EDC</p>
+          <p class="text-xs text-slate-500">BCA, Mandiri, BRI, BNI, dll.</p>
         </div>
       {/if}
 
       <button
         on:click={processPayment}
-        class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2"
+        class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl   transition-colors flex items-center justify-center space-x-2"
       >
         <CheckCircle2 class="w-5 h-5" />
         <span>KONFIRMASI TRANSAKSI</span>
@@ -1040,15 +879,15 @@
 
 <!-- MODAL 2: RECEIPT MODAL -->
 {#if showReceiptModal && lastCompletedTransaction}
-  <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full space-y-4 text-center shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/50  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full space-y-4 text-center shadow-2xl">
       <div class="text-emerald-600 flex flex-col items-center space-y-1">
         <CheckCircle2 class="w-12 h-12" />
-        <h3 class="text-lg font-bold text-slate-900">Transaksi Berhasil!</h3>
+        <h3 class="text-lg font-semibold text-slate-900">Transaksi Berhasil!</h3>
       </div>
 
       <!-- Thermal Printable Receipt Preview -->
-      <div class="flex justify-center my-4 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+      <div class="flex justify-center my-4 overflow-hidden rounded-xl border border-slate-200 ">
         <ThermalReceipt
           invoiceNumber={lastCompletedTransaction.invoiceNumber}
           cashierName={lastCompletedTransaction.cashierName}
@@ -1066,12 +905,12 @@
       </div>
 
       <div class="grid grid-cols-2 gap-3 pt-2">
-        <button on:click={printReceipt} class="py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl flex items-center justify-center space-x-2 shadow-sm">
+        <button on:click={printReceipt} class="py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl flex items-center justify-center space-x-2 ">
           <Printer class="w-4 h-4" />
-          <span>CETAK STRUK</span>
+          <span>Cetak struk</span>
         </button>
-        <button on:click={() => (showReceiptModal = false)} class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-200">
-          <span>TUTUP</span>
+        <button aria-label="Tutup dialog" on:click={() => (showReceiptModal = false)} class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-200">
+          <span>Tutup</span>
         </button>
       </div>
     </div>
@@ -1080,14 +919,14 @@
 
 <!-- MODAL 3: HOLD CARTS DRAWER -->
 {#if showHoldModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+        <h3 class="text-lg font-semibold text-slate-900 flex items-center space-x-2">
           <PauseCircle class="w-5 h-5 text-amber-600" />
           <span>Daftar Transaksi Ditunda (Hold)</span>
         </h3>
-        <button on:click={() => (showHoldModal = false)} class="text-slate-400 hover:text-slate-700">
+        <button aria-label="Tutup dialog" on:click={() => (showHoldModal = false)} class="text-slate-500 hover:text-slate-700">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -1099,7 +938,7 @@
           {#each $heldCartsStore as hold}
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between">
               <div>
-                <h4 class="text-sm font-bold text-slate-900">{hold.label}</h4>
+                <h4 class="text-sm font-semibold text-slate-900">{hold.label}</h4>
                 <p class="text-xs text-slate-500">{hold.timestamp} • {hold.items.length} item</p>
               </div>
               <button
@@ -1107,7 +946,7 @@
                   resumeCart(hold.id);
                   showHoldModal = false;
                 }}
-                class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg flex items-center space-x-1"
+                class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1"
               >
                 <PlayCircle class="w-4 h-4" />
                 <span>LANJUTKAN</span>
@@ -1122,19 +961,19 @@
 
 <!-- MODAL 4: CASHIER SHIFT MANAGEMENT -->
 {#if showShiftModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
       
       <!-- Header -->
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
         <div>
-          <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <h3 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
             <Clock class="w-4 h-4 text-sky-600" />
             <span>Manajemen Shift Kasir</span>
           </h3>
-          <p class="text-[11px] text-slate-500 mt-0.5">Kasir: <span class="font-bold text-slate-700">{$authStore?.name || 'Kasir'}</span></p>
+          <p class="text-xs text-slate-500 mt-0.5">Kasir: <span class="font-semibold text-slate-700">{$authStore?.name || 'Kasir'}</span></p>
         </div>
-        <button on:click={() => (showShiftModal = false)} class="text-slate-400 hover:text-slate-700 p-1">
+        <button aria-label="Tutup dialog" on:click={() => (showShiftModal = false)} class="text-slate-500 hover:text-slate-700 p-1">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -1142,39 +981,39 @@
       {#if !$shiftStore.isClockedIn}
         <!-- Form Mulai Shift Kasir -->
         <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-3">
-          <div class="flex items-center space-x-2 text-emerald-900 font-bold text-sm">
+          <div class="flex items-center space-x-2 text-emerald-900 font-semibold text-sm">
             <PlayCircle class="w-5 h-5 text-emerald-600" />
             <span>Mulai Shift Kasir Baru</span>
           </div>
 
           <div class="bg-white border border-emerald-200 rounded-xl p-3 space-y-1">
-            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Kas Awal Laci (dari closeout terakhir)</p>
+            <p class="text-xs text-slate-500  font-semibold ">Kas Awal Laci (dari closeout terakhir)</p>
             {#if isFetchingLastCash}
-              <p class="text-xs text-slate-400 animate-pulse">Mengambil data closeout terakhir...</p>
+              <p class="text-xs text-slate-500 ">Mengambil data closeout terakhir...</p>
             {:else}
-              <p class="text-xl font-black text-emerald-700 font-mono">{formatRp(clockInStartingCashInput)}</p>
+              <p class="text-xl font-semibold text-emerald-700 tabular-nums">{formatRp(clockInStartingCashInput)}</p>
               {#if lastCloseoutCash > 0}
-                <p class="text-[10px] text-slate-400">✓ Otomatis dari saldo laci closeout terakhir</p>
+                <p class="text-xs text-slate-500">Otomatis dari saldo laci closeout terakhir</p>
               {:else}
-                <p class="text-[10px] text-amber-500">⚠ Belum ada riwayat closeout — kas awal = Rp 0</p>
+                <p class="text-xs text-amber-500">Belum ada riwayat closeout — kas awal = Rp 0</p>
               {/if}
             {/if}
           </div>
 
           <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-600">Ubah manual jika perlu (opsional):</label>
-            <input
+            <label class="text-xs font-semibold text-slate-600" for="vm-field-2">Ubah manual jika perlu (opsional):</label>
+            <input id="vm-field-2"
               type="number"
               bind:value={clockInStartingCashInput}
               placeholder="Masukkan Kas Awal"
-              class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600 font-mono font-bold shadow-sm"
+              class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600 tabular-nums font-semibold "
             />
           </div>
 
           <button
             on:click={handleClockIn}
             disabled={isClockingIn}
-            class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center space-x-2"
+            class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs     transition-colors flex items-center justify-center space-x-2"
           >
             <PlayCircle class="w-4 h-4" />
             <span>{isClockingIn ? 'MEMULAI SHIFT...' : 'MULAI SHIFT SEKARANG'}</span>
@@ -1188,38 +1027,38 @@
             <span class="text-slate-500 font-medium">Shift ID:</span>
             <div class="flex items-center space-x-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span class="font-bold text-sky-800 font-mono px-2.5 py-1 bg-sky-100/80 border border-sky-200 rounded-xl shadow-xs">{$shiftStore.shiftId}</span>
+              <span class="font-semibold text-sky-800 tabular-nums px-2.5 py-1 bg-sky-100/80 border border-sky-200 rounded-xl shadow-xs">{$shiftStore.shiftId}</span>
             </div>
           </div>
           <div class="flex justify-between items-center border-t border-slate-200 pt-2">
             <span class="text-slate-500 font-medium">Kas Awal Laci:</span>
             <div class="flex items-center space-x-1">
               {#if isEditingStartingCash}
-                <input
+                <input aria-label="Nilai"
                   type="number"
                   bind:value={newStartingCashInput}
-                  class="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold focus:outline-none focus:border-sky-600"
+                  class="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs tabular-nums font-semibold focus:outline-none focus:border-sky-600"
                 />
-                <button on:click={handleUpdateStartingCash} class="px-2 py-1 bg-emerald-600 text-white font-bold rounded-lg text-[10px]">Simpan</button>
+                <button on:click={handleUpdateStartingCash} class="px-2 py-1 bg-emerald-600 text-white font-semibold rounded-lg text-xs">Simpan</button>
               {:else}
-                <span class="font-bold text-emerald-700">{formatRp($shiftStore.startingCash)}</span>
-                <button on:click={() => { newStartingCashInput = $shiftStore.startingCash; isEditingStartingCash = true; }} class="text-[10px] text-sky-600 font-bold underline hover:text-sky-800 ml-1">Ubah</button>
+                <span class="font-semibold text-emerald-700">{formatRp($shiftStore.startingCash)}</span>
+                <button on:click={() => { newStartingCashInput = $shiftStore.startingCash; isEditingStartingCash = true; }} class="text-xs text-sky-600 font-semibold underline hover:text-sky-800 ml-1">Ubah</button>
               {/if}
             </div>
           </div>
           <div class="flex justify-between items-center border-t border-slate-200 pt-2">
             <span class="text-slate-500 font-medium">Penjualan Tunai (+):</span>
-            <span class="font-bold text-sky-700">{formatRp($shiftStore.salesCash || 0)}</span>
+            <span class="font-semibold text-sky-700">{formatRp($shiftStore.salesCash || 0)}</span>
           </div>
           {#if ($shiftStore.withdrawalsTotal || 0) > 0}
           <div class="flex justify-between items-center border-t border-slate-200 pt-2">
             <span class="text-slate-500 font-medium">Diambil Owner (-):</span>
-            <span class="font-bold text-red-600">-{formatRp($shiftStore.withdrawalsTotal || 0)}</span>
+            <span class="font-semibold text-red-600">-{formatRp($shiftStore.withdrawalsTotal || 0)}</span>
           </div>
           {/if}
           <div class="flex justify-between items-center border-t-2 border-slate-300 pt-2">
-            <span class="font-bold text-slate-700">Ekspektasi Uang Laci:</span>
-            <span class="font-extrabold text-slate-900 font-mono text-sm">{formatRp(($shiftStore.startingCash || 0) + ($shiftStore.salesCash || 0) - ($shiftStore.withdrawalsTotal || 0))}</span>
+            <span class="font-semibold text-slate-700">Ekspektasi Uang Laci:</span>
+            <span class="font-extrabold text-slate-900 tabular-nums text-sm">{formatRp(($shiftStore.startingCash || 0) + ($shiftStore.salesCash || 0) - ($shiftStore.withdrawalsTotal || 0))}</span>
           </div>
         </div>
 
@@ -1227,27 +1066,27 @@
         <div class="border border-amber-200 rounded-2xl overflow-hidden">
           <div class="bg-amber-50 px-4 py-2.5 flex items-center space-x-2 border-b border-amber-200">
             <Coins class="w-4 h-4 text-amber-600" />
-            <span class="text-xs font-bold text-amber-800">Penarikan Tunai oleh Owner</span>
+            <span class="text-xs font-semibold text-amber-800">Penarikan Tunai oleh Owner</span>
           </div>
           <div class="p-3 space-y-2">
             <div class="flex space-x-2">
-              <input
+              <input aria-label="Nominal yang diambil (Rp)"
                 type="number"
                 bind:value={withdrawAmount}
                 placeholder="Nominal yang diambil (Rp)"
-                class="flex-1 bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 font-mono font-bold shadow-sm"
+                class="flex-1 bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 tabular-nums font-semibold "
               />
             </div>
-            <input
+            <input aria-label="Catatan (opsional, contoh: Setoran harian)"
               type="text"
               bind:value={withdrawNotes}
               placeholder="Catatan (opsional, contoh: Setoran harian)"
-              class="w-full bg-white border border-slate-300 text-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 shadow-sm"
+              class="w-full bg-white border border-slate-300 text-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 "
             />
             <button
               on:click={handleOwnerWithdrawal}
               disabled={isWithdrawing || !withdrawAmount || withdrawAmount <= 0}
-              class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-sm transition-all flex items-center justify-center space-x-2"
+              class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-semibold rounded-xl text-xs    transition-colors flex items-center justify-center space-x-2"
             >
               <Coins class="w-4 h-4" />
               <span>{isWithdrawing ? 'MENCATAT...' : 'CATAT PENGAMBILAN OWNER'}</span>
@@ -1255,14 +1094,14 @@
 
             {#if ($shiftStore.withdrawalsHistory || []).length > 0}
               <div class="space-y-1 mt-1">
-                <p class="text-[10px] font-bold text-slate-500 uppercase">Riwayat Penarikan:</p>
+                <p class="text-xs font-semibold text-slate-500 ">Riwayat Penarikan:</p>
                 {#each ($shiftStore.withdrawalsHistory || []) as w}
-                  <div class="flex justify-between items-center bg-amber-50 px-3 py-1.5 rounded-lg text-[11px]">
+                  <div class="flex justify-between items-center bg-amber-50 px-3 py-1.5 rounded-lg text-xs">
                     <div>
-                      <span class="font-bold text-slate-800">{formatRp(w.amount)}</span>
+                      <span class="font-semibold text-slate-800">{formatRp(w.amount)}</span>
                       <span class="text-slate-500 ml-1">— {w.notes || 'Diambil Owner'}</span>
                     </div>
-                    <button on:click={() => handleCancelWithdrawal(w.id, w.amount)} class="text-red-500 hover:text-red-700 font-bold text-[10px]">Batal</button>
+                    <button on:click={() => handleCancelWithdrawal(w.id, w.amount)} class="text-red-500 hover:text-red-700 font-semibold text-xs">Batal</button>
                   </div>
                 {/each}
               </div>
@@ -1272,18 +1111,18 @@
 
         <!-- Clock-Out Section -->
         <div class="space-y-2 border-t border-slate-200 pt-3">
-          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">🔴 Stop Shift & Rekap Laci</h4>
-          <label class="text-xs text-slate-600 font-medium">Hitung total uang fisik di laci saat ini:</label>
-          <input
+          <h4 class="text-xs font-semibold text-slate-700  ">Stop Shift & Rekap Laci</h4>
+          <label class="text-xs text-slate-600 font-medium" for="vm-field-3">Hitung total uang fisik di laci saat ini:</label>
+          <input id="vm-field-3"
             type="number"
             bind:value={clockOutActualCash}
             placeholder="Total uang fisik di laci (Rp)"
-            class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-400 font-mono font-bold shadow-sm"
+            class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-400 tabular-nums font-semibold "
           />
           <button
             on:click={handleClockOut}
             disabled={isClockingOut}
-            class="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-red-600/20 transition-all"
+            class="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs     transition-colors"
           >
             {isClockingOut ? 'PROSES CLOCK-OUT...' : 'STOP SHIFT & HENTIKAN KASIR'}
           </button>
@@ -1295,30 +1134,30 @@
 
 <!-- MODAL 5: QUICK MEMBER REGISTRATION -->
 {#if showAddMemberModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+        <h3 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
           <UserCheck class="w-5 h-5 text-sky-600" />
           <span>Registrasi Member Baru</span>
         </h3>
-        <button on:click={() => showAddMemberModal = false} class="text-slate-400 hover:text-slate-700">
+        <button aria-label="Tutup dialog" on:click={() => showAddMemberModal = false} class="text-slate-500 hover:text-slate-700">
           <X class="w-5 h-5" />
         </button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="text-slate-600 font-bold">Nama Lengkap Member</label>
-          <input type="text" bind:value={newMemberForm.name} placeholder="Contoh: Budi Santoso" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 focus:outline-none focus:border-sky-600" />
+          <label class="text-slate-600 font-semibold" for="vm-field-4">Nama Lengkap Member</label>
+          <input id="vm-field-4" type="text" bind:value={newMemberForm.name} placeholder="Contoh: Budi Santoso" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 focus:outline-none focus:border-sky-600" />
         </div>
         <div>
-          <label class="text-slate-600 font-bold">No. Telepon / WhatsApp</label>
-          <input type="text" bind:value={newMemberForm.phone} placeholder="081234567890" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 font-mono focus:outline-none focus:border-sky-600" />
+          <label class="text-slate-600 font-semibold" for="vm-field-5">No. Telepon / WhatsApp</label>
+          <input id="vm-field-5" type="text" bind:value={newMemberForm.phone} placeholder="081234567890" class="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 mt-1 tabular-nums focus:outline-none focus:border-sky-600" />
         </div>
       </div>
 
-      <button on:click={registerQuickMember} disabled={isRegisteringMember} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md shadow-sky-600/20">
+      <button on:click={registerQuickMember} disabled={isRegisteringMember} class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs    ">
         {isRegisteringMember ? 'MENDAFTARKAN...' : 'DAFTARKAN & PILIH MEMBER'}
       </button>
     </div>
@@ -1327,8 +1166,8 @@
 
 <!-- MODAL 6: SESI BELUM AKTIF — Blokir Pembayaran -->
 {#if showSessionRequiredModal}
-  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl text-center">
+  <div class="fixed inset-0 bg-slate-900/60  z-[60] flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 space-y-5 shadow-2xl text-center">
       
       <!-- Icon & Judul -->
       <div class="flex flex-col items-center space-y-3">
@@ -1336,18 +1175,18 @@
           <Clock class="w-8 h-8 text-amber-600" />
         </div>
         <div>
-          <h3 class="text-lg font-black text-slate-900">Sesi Belum Aktif!</h3>
+          <h3 class="text-lg font-semibold text-slate-900">Sesi Belum Aktif!</h3>
           <p class="text-xs text-slate-500 mt-1">Kasir tidak dapat memproses pembayaran sebelum mengaktifkan sesi shift.</p>
         </div>
       </div>
 
       <!-- Info Box -->
       <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left space-y-2">
-        <p class="text-xs font-bold text-amber-800 flex items-center space-x-1.5">
+        <p class="text-xs font-semibold text-amber-800 flex items-center space-x-1.5">
           <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
           <span>Kenapa perlu aktifkan sesi?</span>
         </p>
-        <ul class="text-[11px] text-amber-700 space-y-1 ml-3.5 list-disc">
+        <ul class="text-xs text-amber-700 space-y-1 ml-3.5 list-disc">
           <li>Setiap transaksi harus terikat ke shift kasir yang aktif</li>
           <li>Untuk keperluan audit & laporan keuangan harian</li>
           <li>Pastikan kas awal laci sudah disiapkan sebelum mulai</li>
@@ -1362,21 +1201,21 @@
             showShiftModal = true;
             fetchLastCloseoutCash();
           }}
-          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2"
+          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-sm   transition-colors flex items-center justify-center space-x-2"
         >
           <PlayCircle class="w-5 h-5" />
           <span>AKTIFKAN SESI SEKARANG</span>
         </button>
 
         <button
-          on:click={() => (showSessionRequiredModal = false)}
-          class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm border border-slate-200 transition-all"
+          aria-label="Tutup dialog" on:click={() => (showSessionRequiredModal = false)}
+          class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-xl text-sm border border-slate-200 transition-colors"
         >
           Batal
         </button>
       </div>
 
-      <p class="text-[10px] text-slate-400">
+      <p class="text-xs text-slate-500">
         Hubungi supervisor jika ada kendala dalam memulai sesi
       </p>
     </div>

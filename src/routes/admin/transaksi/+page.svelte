@@ -1,4 +1,7 @@
 <script lang="ts">
+  import LoadNotice from '$lib/components/LoadNotice.svelte';
+  let loadError = '';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount, onDestroy } from 'svelte';
   import { FileText, Search, Printer, Download, Eye, Filter, X, Clock, CheckCircle, AlertTriangle, Wallet, RefreshCw } from 'lucide-svelte';
 
@@ -13,14 +16,14 @@
   let intervalId: any;
 
   async function loadData() {
-    isRefreshing = true;
+    isRefreshing = true; loadError = '';
     try {
       const res = await fetch('/api/transactions').then(r => r.json());
       if (res?.success && Array.isArray(res.data)) {
         transactions = res.data;
       }
     } catch (e) {
-      console.warn('Failed to load transactions from API', e);
+      loadError = 'Transaksi belum dapat dimuat. Silakan coba lagi.';
     }
 
     try {
@@ -29,7 +32,7 @@
         shifts = resS.data;
       }
     } catch (e) {
-      console.warn('Failed to load shifts', e);
+      loadError = 'Sesi kasir belum dapat dimuat. Silakan coba lagi.';
     } finally {
       isRefreshing = false;
     }
@@ -160,53 +163,54 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="page-content">
   <!-- Header -->
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-wide">Transaksi & Audit Shift Kasir</h1>
+      <h1 class="page-title">Transaksi & sesi kasir</h1>
       <p class="text-xs text-slate-500 mt-1">Daftar struk penjualan, laporan rekap kas laci, dan audit selisih shift kasir</p>
     </div>
 
     <div class="flex items-center space-x-2">
-      <button on:click={loadData} class="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-sm transition-colors">
+      <button on:click={loadData} class="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center space-x-1.5  transition-colors">
         <RefreshCw class="w-3.5 h-3.5 text-sky-600 {isRefreshing ? 'animate-spin' : ''}" />
-        <span>SEGARKAN</span>
+        <span>{"Segarkan"}</span>
       </button>
 
       {#if activeTab === 'transactions'}
-        <button on:click={exportAllTransactionsXLSX} class="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center space-x-2 shadow-sm transition-colors">
+        <button on:click={exportAllTransactionsXLSX} class="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center space-x-2  transition-colors">
           <Download class="w-4 h-4 text-sky-600" />
-          <span>EXPORT ALL TRANSACTIONS (.XLSX)</span>
+          <span>{"Ekspor transaksi"}</span>
         </button>
       {/if}
     </div>
   </div>
+  <LoadNotice loading={isRefreshing && !transactions.length && !shifts.length} error={loadError} retry={loadData} />
 
   <!-- Navigation Tabs -->
-  <div class="flex space-x-3 border-b border-slate-200 pb-1">
+  <div class="scroll-tabs flex space-x-3 border-b border-slate-200 pb-1">
     <button
       on:click={() => activeTab = 'transactions'}
-      class="px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center space-x-2 {activeTab === 'transactions' ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
+      class="px-4 py-2 text-xs font-semibold rounded-xl transition-colors flex items-center space-x-2 {activeTab === 'transactions' ? 'bg-sky-600 text-white  ' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
     >
       <FileText class="w-4 h-4" />
-      <span>RIWAYAT TRANSAKSI</span>
+      <span>{"Riwayat transaksi"}</span>
     </button>
     <button
       on:click={() => activeTab = 'shifts'}
-      class="px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center space-x-2 {activeTab === 'shifts' ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
+      class="px-4 py-2 text-xs font-semibold rounded-xl transition-colors flex items-center space-x-2 {activeTab === 'shifts' ? 'bg-sky-600 text-white  ' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
     >
       <Clock class="w-4 h-4" />
-      <span>REKAP & AUDIT SHIFT KASIR</span>
+      <span>{"Rekap sesi kasir"}</span>
     </button>
   </div>
 
   {#if activeTab === 'transactions'}
     <!-- Filters & Search Bar -->
-    <div class="flex items-center space-x-3 bg-white border border-slate-200 p-3 rounded-2xl shadow-sm">
+    <div class="flex items-center space-x-3 bg-white border border-slate-200 p-3 rounded-2xl ">
       <div class="relative flex-1">
-        <Search class="w-5 h-5 absolute left-3.5 top-2.5 text-slate-400" />
-        <input
+        <Search class="w-5 h-5 absolute left-3.5 top-2.5 text-slate-500" />
+        <input aria-label="Cari nomor invoice (INV-...) atau nama kasir..."
           type="text"
           bind:value={searchQuery}
           placeholder="Cari nomor invoice (INV-...) atau nama kasir..."
@@ -215,8 +219,8 @@
       </div>
 
       <div class="flex items-center space-x-2">
-        <Filter class="w-4 h-4 text-slate-400 ml-1" />
-        <select bind:value={selectedMethod} class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none">
+        <Filter class="w-4 h-4 text-slate-500 ml-1" />
+        <select aria-label="Metode pembayaran" bind:value={selectedMethod} class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none">
           <option value="ALL">Semua Metode</option>
           <option value="CASH">TUNAI (CASH)</option>
           <option value="QRIS">QRIS</option>
@@ -226,9 +230,9 @@
     </div>
 
     <!-- Transaction History Table -->
-    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-      <table class="w-full text-left text-xs text-slate-700">
-        <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden ">
+      <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+        <thead>
           <tr>
             <th class="p-3.5">No. Invoice</th>
             <th class="p-3.5">Waktu Transaksi</th>
@@ -243,37 +247,37 @@
         <tbody class="divide-y divide-slate-100">
           {#each filteredTransactions as t}
             <tr class="hover:bg-slate-50">
-              <td class="p-3.5 font-mono font-bold text-sky-700 flex items-center space-x-1.5">
+              <td class="p-3.5 tabular-nums font-semibold text-sky-700 flex items-center space-x-1.5">
                 <FileText class="w-4 h-4" />
                 <span>{t.invoiceNumber}</span>
               </td>
-              <td class="p-3.5 text-slate-500 font-mono">{t.date}</td>
+              <td class="p-3.5 text-slate-500 tabular-nums">{t.date}</td>
               <td class="p-3.5 font-semibold text-slate-900">{t.cashierName}</td>
               <td class="p-3.5 font-medium text-slate-700">
                 {#if t.memberName}
-                  <span class="text-sky-700 font-bold">{t.memberName}</span>
+                  <span class="text-sky-700 font-semibold">{t.memberName}</span>
                 {:else}
-                  <span class="text-slate-400 font-normal">-</span>
+                  <span class="text-slate-500 font-normal">-</span>
                 {/if}
               </td>
               <td class="p-3.5 text-center">
                 {#if t.promoCode}
-                  <span class="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold text-[10px] rounded-full">
-                    🏷️ {t.promoCode}
+                  <span class="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 tabular-nums font-semibold text-xs rounded-full">
+                    {t.promoCode}
                   </span>
                 {:else}
-                  <span class="text-slate-400 font-normal">-</span>
+                  <span class="text-slate-500 font-normal">-</span>
                 {/if}
               </td>
               <td class="p-3.5 text-center">
-                <span class="px-2.5 py-0.5 rounded-full font-bold text-[10px] {t.paymentMethod === 'QRIS' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
+                <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs {t.paymentMethod === 'QRIS' ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
                   {t.paymentMethod}
                 </span>
               </td>
-              <td class="p-3.5 text-right font-mono font-black text-slate-900">
+              <td class="p-3.5 text-right tabular-nums font-semibold text-slate-900">
                 {formatRp(t.grandTotal)}
                 {#if t.discount > 0}
-                  <div class="text-[10px] text-amber-600 font-semibold">Diskon -{formatRp(t.discount)}</div>
+                  <div class="text-xs text-amber-600 font-semibold">Diskon -{formatRp(t.discount)}</div>
                 {/if}
               </td>
               <td class="p-3.5 text-center space-x-1.5">
@@ -282,34 +286,34 @@
                     selectedTrx = t;
                     showDetailModal = true;
                   }}
-                  class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg border border-slate-200"
+                  class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg border border-slate-200"
                 >
                   <Eye class="w-3.5 h-3.5 inline mr-1" />
                   <span>Detail</span>
                 </button>
                 <button
                   on:click={() => printDigitalReceipt(t)}
-                  class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg border border-sky-200"
+                  class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200"
                 >
                   <Download class="w-3.5 h-3.5 inline mr-1" />
                   <span>Cetak / PDF</span>
                 </button>
               </td>
             </tr>
-          {/each}
+          {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
         </tbody>
-      </table>
+      </table></div>
     </div>
   {:else}
     <!-- Shift Audit View -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
-      <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 ">
+      <h2 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
         <Clock class="w-5 h-5 text-sky-600" />
         <span>Laporan Audit Shift & Rekap Laci Kasir</span>
       </h2>
 
-      <table class="w-full text-left text-xs text-slate-700">
-        <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+      <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+        <thead>
           <tr>
             <th class="p-3">ID Shift</th>
             <th class="p-3">Kasir</th>
@@ -326,95 +330,95 @@
         <tbody class="divide-y divide-slate-100">
           {#each shifts as s}
             <tr class="hover:bg-slate-50">
-              <td class="p-3 font-mono font-bold text-sky-700">{s.id}</td>
-              <td class="p-3 font-bold text-slate-900">{s.cashierName}</td>
-              <td class="p-3 text-slate-500 font-mono text-[11px]">{new Date(s.clockIn).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td>
-              <td class="p-3 text-slate-500 font-mono text-[11px]">{s.clockOut ? new Date(s.clockOut).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : (s.status === 'closed' ? 'Selesai' : 'Shift Aktif')}</td>
+              <td class="p-3 tabular-nums font-semibold text-sky-700">{s.id}</td>
+              <td class="p-3 font-semibold text-slate-900">{s.cashierName}</td>
+              <td class="p-3 text-slate-500 tabular-nums text-xs">{new Date(s.clockIn).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td>
+              <td class="p-3 text-slate-500 tabular-nums text-xs">{s.clockOut ? new Date(s.clockOut).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : (s.status === 'closed' ? 'Selesai' : 'Shift Aktif')}</td>
 
-              <td class="p-3 text-right font-mono">{formatRp(s.startingCash || 0)}</td>
-              <td class="p-3 text-right font-mono text-emerald-700 font-semibold">{formatRp(s.salesCash || 0)}</td>
-              <td class="p-3 text-right font-mono font-bold text-slate-900">{formatRp(s.expectedCash || 0)}</td>
-              <td class="p-3 text-right font-mono font-bold text-sky-700">{s.actualCash !== null && s.actualCash !== undefined ? formatRp(s.actualCash) : (s.status === 'closed' ? formatRp(s.expectedCash || 0) : 'Belum Input')}</td>
+              <td class="p-3 text-right tabular-nums">{formatRp(s.startingCash || 0)}</td>
+              <td class="p-3 text-right tabular-nums text-emerald-700 font-semibold">{formatRp(s.salesCash || 0)}</td>
+              <td class="p-3 text-right tabular-nums font-semibold text-slate-900">{formatRp(s.expectedCash || 0)}</td>
+              <td class="p-3 text-right tabular-nums font-semibold text-sky-700">{s.actualCash !== null && s.actualCash !== undefined ? formatRp(s.actualCash) : (s.status === 'closed' ? formatRp(s.expectedCash || 0) : 'Belum Input')}</td>
               <td class="p-3 text-center">
                 {#if s.difference === 0}
-                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px] border border-emerald-200">
+                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold text-xs border border-emerald-200">
                     IMPAS (Rp 0)
                   </span>
                 {:else if s.difference > 0}
-                  <span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold text-[10px] border border-blue-200">
+                  <span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-full font-semibold text-xs border border-blue-200">
                     +{formatRp(s.difference)}
                   </span>
                 {:else if s.difference < 0}
-                  <span class="px-2.5 py-0.5 bg-red-50 text-red-700 rounded-full font-bold text-[10px] border border-red-200">
+                  <span class="px-2.5 py-0.5 bg-red-50 text-red-700 rounded-full font-semibold text-xs border border-red-200">
                     {formatRp(s.difference)}
                   </span>
                 {:else if s.status === 'closed'}
-                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px] border border-emerald-200">
+                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold text-xs border border-emerald-200">
                     IMPAS (Rp 0)
                   </span>
                 {:else}
-                  <span class="text-slate-400 font-mono text-[11px]">Shift Aktif</span>
+                  <span class="text-slate-500 tabular-nums text-xs">Shift Aktif</span>
                 {/if}
               </td>
               <td class="p-3 text-center">
                 {#if s.status === 'closed'}
-                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px] border border-emerald-200">
+                  <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold text-xs border border-emerald-200">
                     CLOSED
                   </span>
                 {:else}
-                  <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[10px] border border-amber-200 animate-pulse">
+                  <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-semibold text-xs border border-amber-200 ">
                     OPEN
                   </span>
                 {/if}
               </td>
             </tr>
-          {/each}
+          {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
         </tbody>
-      </table>
+      </table></div>
     </div>
   {/if}
 </div>
 
 <!-- Modal Detail Struk Digital -->
 {#if showDetailModal && selectedTrx}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900">Detail Struk Digital</h3>
-        <button on:click={() => showDetailModal = false} class="text-slate-400 hover:text-slate-700"><X class="w-5 h-5" /></button>
+        <h3 class="text-base font-semibold text-slate-900">Detail Struk Digital</h3>
+        <button aria-label="Tutup dialog" on:click={() => showDetailModal = false} class="text-slate-500 hover:text-slate-700"><X class="w-5 h-5" /></button>
       </div>
 
       <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
         <div class="flex justify-between">
           <span class="text-slate-500">Invoice:</span>
-          <span class="font-mono font-bold text-sky-700">{selectedTrx.invoiceNumber}</span>
+          <span class="tabular-nums font-semibold text-sky-700">{selectedTrx.invoiceNumber}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-500">Kasir:</span>
-          <span class="font-bold text-slate-900">{selectedTrx.cashierName}</span>
+          <span class="font-semibold text-slate-900">{selectedTrx.cashierName}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-500">Waktu:</span>
-          <span class="font-mono text-slate-600">{selectedTrx.date}</span>
+          <span class="tabular-nums text-slate-600">{selectedTrx.date}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-500">Metode Bayar:</span>
-          <span class="font-bold text-emerald-700">{selectedTrx.paymentMethod}</span>
+          <span class="font-semibold text-emerald-700">{selectedTrx.paymentMethod}</span>
         </div>
       </div>
 
       <div class="space-y-2 border-t border-b border-slate-200 py-3 text-xs">
-        <span class="font-bold text-slate-800 uppercase tracking-wider text-[10px]">Rincian Barang Belanjaan</span>
+        <span class="font-semibold text-slate-800   text-xs">Rincian Barang Belanjaan</span>
         {#each selectedTrx.items as item}
           <div class="flex justify-between text-slate-700">
             <span>{item.name} x{item.qty}</span>
-            <span class="font-mono font-semibold">{formatRp(item.price * item.qty)}</span>
+            <span class="tabular-nums font-semibold">{formatRp(item.price * item.qty)}</span>
           </div>
         {/each}
       </div>
 
       <div class="space-y-1 text-xs text-slate-700 pt-1">
-        <div class="flex justify-between font-black text-sm text-slate-900">
+        <div class="flex justify-between font-semibold text-sm text-slate-900">
           <span>TOTAL TRANSAKSI</span>
           <span class="text-sky-700">{formatRp(selectedTrx.grandTotal)}</span>
         </div>
@@ -429,11 +433,11 @@
       </div>
 
       <div class="grid grid-cols-2 gap-2 pt-2">
-        <button on:click={() => printDigitalReceipt(selectedTrx)} class="py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1 shadow-md shadow-sky-600/20">
+        <button on:click={() => printDigitalReceipt(selectedTrx)} class="py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs flex items-center justify-center space-x-1  ">
           <Download class="w-4 h-4" />
           <span>UNDUH PDF / STRUK</span>
         </button>
-        <button on:click={() => printDigitalReceipt(selectedTrx)} class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center space-x-1 border border-slate-200">
+        <button on:click={() => printDigitalReceipt(selectedTrx)} class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center space-x-1 border border-slate-200">
           <Printer class="w-4 h-4" />
           <span>CETAK REPRINTS</span>
         </button>

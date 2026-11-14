@@ -1,4 +1,10 @@
 <script lang="ts">
+  let listQuery = '';
+  $: visibleRows = accounts.filter(row => [row.name,row.email].some(value => String(value || '').toLowerCase().includes(listQuery.toLowerCase())));
+  import LoadNotice from '$lib/components/LoadNotice.svelte';
+  let loadingPage = true;
+  let loadError = '';
+  import { dialog } from '$lib/actions/dialog';
   import { onMount } from 'svelte';
   import { UserCog, Plus, Edit3, Trash2, X, Eye, EyeOff, ShieldCheck, User } from 'lucide-svelte';
   import { authStore } from '$lib/stores/authStore';
@@ -27,16 +33,19 @@
 
   let formError = '';
 
-  onMount(async () => {
+  async function loadPage() {
+    loadingPage = true; loadError = '';
     try {
       const res = await fetch('/api/users').then(r => r.json());
       if (res?.success && Array.isArray(res.data)) {
         accounts = res.data;
-      }
+      } else { throw new Error('Data tidak tersedia'); }
     } catch (e) {
-      console.warn('Failed to load users from API', e);
+      loadError = 'Data belum dapat dimuat. Periksa koneksi lalu coba lagi.';
     }
-  });
+    loadingPage = false;
+  }
+  onMount(loadPage);
 
   function openCreate() {
     editingId = null;
@@ -135,43 +144,45 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="page-content">
   <!-- Header -->
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-wide">Manajemen Akun Pengguna</h1>
+      <h1 class="page-title">Manajemen akun</h1>
       <p class="text-xs text-slate-500 mt-1">Buat, edit, dan kelola akun kasir & admin. Hanya Admin yang dapat mengakses halaman ini.</p>
     </div>
 
     <button
       on:click={openCreate}
-      class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl flex items-center space-x-2 shadow-md shadow-sky-600/20"
+      class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-2  "
     >
       <Plus class="w-4 h-4" />
-      <span>BUAT AKUN BARU</span>
+      <span>Buat akun</span>
     </button>
   </div>
+  <LoadNotice loading={loadingPage} error={loadError} retry={loadPage} />
+  <div class="list-toolbar"><label class="list-search"><span class="sr-only">Cari nama atau email akun…</span><input aria-label="Cari nama atau email akun…" type="search" bind:value={listQuery} placeholder="Cari nama atau email akun…" /></label><span>{visibleRows.length} akun</span></div>
 
   <!-- Stats Cards -->
   <div class="grid grid-cols-3 gap-4">
-    <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
-      <span class="text-xs font-bold text-slate-500 uppercase">Total Akun</span>
-      <div class="text-2xl font-black text-slate-900 mt-1">{accounts.length}</div>
+    <div class="bg-white border border-slate-200 p-4 rounded-2xl ">
+      <span class="text-xs font-semibold text-slate-500 ">Total Akun</span>
+      <div class="text-2xl font-semibold text-slate-900 mt-1">{accounts.length}</div>
     </div>
-    <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
-      <span class="text-xs font-bold text-slate-500 uppercase">Akun Admin</span>
-      <div class="text-2xl font-black text-amber-600 mt-1">{accounts.filter((a) => a.role === 'admin').length}</div>
+    <div class="bg-white border border-slate-200 p-4 rounded-2xl ">
+      <span class="text-xs font-semibold text-slate-500 ">Akun Admin</span>
+      <div class="text-2xl font-semibold text-amber-600 mt-1">{accounts.filter((a) => a.role === 'admin').length}</div>
     </div>
-    <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
-      <span class="text-xs font-bold text-slate-500 uppercase">Akun Kasir</span>
-      <div class="text-2xl font-black text-sky-600 mt-1">{accounts.filter((a) => a.role === 'cashier').length}</div>
+    <div class="bg-white border border-slate-200 p-4 rounded-2xl ">
+      <span class="text-xs font-semibold text-slate-500 ">Akun Kasir</span>
+      <div class="text-2xl font-semibold text-sky-600 mt-1">{accounts.filter((a) => a.role === 'cashier').length}</div>
     </div>
   </div>
 
   <!-- Accounts Table -->
-  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-    <table class="w-full text-left text-xs text-slate-700">
-      <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+  <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden ">
+    <div class="data-table-scroll"><table class="w-full text-left text-xs text-slate-700">
+      <thead>
         <tr>
           <th class="p-3.5">Nama Pengguna</th>
           <th class="p-3.5">Email</th>
@@ -181,7 +192,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        {#each accounts as acc}
+        {#each visibleRows as acc}
           <tr class="hover:bg-slate-50">
             <!-- Name with Role Icon -->
             <td class="p-3.5">
@@ -194,20 +205,20 @@
                   {/if}
                 </div>
                 <div>
-                  <p class="font-bold text-slate-900">{acc.name}</p>
+                  <p class="font-semibold text-slate-900">{acc.name}</p>
                   {#if $authStore?.id === acc.id}
-                    <span class="text-[10px] text-emerald-600 font-semibold">(Anda)</span>
+                    <span class="text-xs text-emerald-600 font-semibold">(Anda)</span>
                   {/if}
                 </div>
               </div>
             </td>
-            <td class="p-3.5 font-mono text-slate-600">{acc.email}</td>
+            <td class="p-3.5 tabular-nums text-slate-600">{acc.email}</td>
             <td class="p-3.5 text-center">
-              <span class="px-2.5 py-1 rounded-full font-bold text-[10px] {acc.role === 'admin' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
-                {acc.role === 'admin' ? '🛡️ Admin' : '🏪 Kasir'}
+              <span class="px-2.5 py-1 rounded-full font-semibold text-xs {acc.role === 'admin' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
+                {acc.role === 'admin' ? 'Admin' : 'Kasir'}
               </span>
             </td>
-            <td class="p-3.5 text-center text-slate-400 font-mono">{acc.createdAt}</td>
+            <td class="p-3.5 text-center text-slate-500 tabular-nums">{acc.createdAt}</td>
             <td class="p-3.5 text-center space-x-1.5">
               <button
                 on:click={() => openEdit(acc)}
@@ -226,22 +237,22 @@
               </button>
             </td>
           </tr>
-        {/each}
+        {:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
 <!-- Modal Form Create/Edit Akun -->
 {#if showModal}
-  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+  <div class="fixed inset-0 bg-slate-900/40  z-50 flex items-center justify-center p-4">
+    <div use:dialog class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+        <h3 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
           <UserCog class="w-5 h-5 text-sky-600" />
           <span>{editingId ? 'Edit Akun Pengguna' : 'Buat Akun Baru'}</span>
         </h3>
-        <button on:click={() => showModal = false} class="text-slate-400 hover:text-slate-700">
+        <button aria-label="Tutup dialog" on:click={() => showModal = false} class="text-slate-500 hover:text-slate-700">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -249,8 +260,8 @@
       <div class="space-y-4 text-xs">
         <!-- Name -->
         <div class="space-y-1.5">
-          <label class="font-bold text-slate-700 uppercase tracking-wider">Nama Lengkap</label>
-          <input
+          <label class="font-semibold text-slate-700  " for="vm-field-1">Nama Lengkap</label>
+          <input id="vm-field-1"
             type="text"
             bind:value={form.name}
             placeholder="Nama kasir atau admin"
@@ -260,30 +271,30 @@
 
         <!-- Email -->
         <div class="space-y-1.5">
-          <label class="font-bold text-slate-700 uppercase tracking-wider">Email Login</label>
-          <input
+          <label class="font-semibold text-slate-700  " for="vm-field-2">Email Login</label>
+          <input id="vm-field-2"
             type="email"
             bind:value={form.email}
             placeholder="contoh@minimarket.com"
-            class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 font-mono text-sm"
+            class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 tabular-nums text-sm"
           />
         </div>
 
         <!-- PIN -->
         <div class="space-y-1.5">
-          <label class="font-bold text-slate-700 uppercase tracking-wider">PIN Kasir (6 Digit)</label>
+          <label class="font-semibold text-slate-700  " for="vm-field-3">PIN Kasir (6 Digit)</label>
           <div class="relative">
-            <input
+            <input id="vm-field-3"
               type={showPin ? 'text' : 'password'}
               bind:value={form.pinCode}
               placeholder="6 digit angka"
               maxlength={6}
-              class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-3.5 py-2.5 font-mono tracking-widest focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 text-sm"
+              class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-3.5 py-2.5 tabular-nums  focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 text-sm"
             />
             <button
               type="button"
               on:click={() => showPin = !showPin}
-              class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+              class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-600"
               tabindex="-1"
             >
               {#if showPin}
@@ -297,23 +308,23 @@
 
         <!-- Role -->
         <div class="space-y-1.5">
-          <label class="font-bold text-slate-700 uppercase tracking-wider">Role / Jabatan</label>
+          <p class="font-semibold text-slate-700  ">Role / Jabatan</p>
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
               on:click={() => form.role = 'cashier'}
-              class="py-3 rounded-xl border text-xs font-bold flex flex-col items-center space-y-1 transition-all {form.role === 'cashier' ? 'bg-sky-50 border-sky-400 text-sky-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500'}"
+              class="py-3 rounded-xl border text-xs font-semibold flex flex-col items-center space-y-1 transition-colors {form.role === 'cashier' ? 'bg-sky-50 border-sky-400 text-sky-700 ' : 'bg-slate-50 border-slate-200 text-slate-500'}"
             >
               <User class="w-5 h-5" />
-              <span>🏪 Kasir</span>
+              <span>Kasir</span>
             </button>
             <button
               type="button"
               on:click={() => form.role = 'admin'}
-              class="py-3 rounded-xl border text-xs font-bold flex flex-col items-center space-y-1 transition-all {form.role === 'admin' ? 'bg-amber-50 border-amber-400 text-amber-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500'}"
+              class="py-3 rounded-xl border text-xs font-semibold flex flex-col items-center space-y-1 transition-colors {form.role === 'admin' ? 'bg-amber-50 border-amber-400 text-amber-700 ' : 'bg-slate-50 border-slate-200 text-slate-500'}"
             >
               <ShieldCheck class="w-5 h-5" />
-              <span>🛡️ Admin</span>
+              <span>Admin</span>
             </button>
           </div>
         </div>
@@ -321,7 +332,7 @@
         <!-- Error Message -->
         {#if formError}
           <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
-            ⚠️ {formError}
+            {formError}
           </div>
         {/if}
       </div>
@@ -329,7 +340,7 @@
       <button
         on:click={saveAccount}
         disabled={isSaving}
-        class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-black rounded-xl text-xs uppercase tracking-wider shadow-md shadow-sky-600/20"
+        class="w-full py-3 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs    "
       >
         {isSaving ? 'MENYIMPAN...' : (editingId ? 'SIMPAN PERUBAHAN AKUN' : 'BUAT AKUN SEKARANG')}
       </button>

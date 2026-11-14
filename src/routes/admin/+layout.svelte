@@ -3,126 +3,59 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
-  import {
-    LayoutDashboard,
-    FileText,
-    Package,
-    Truck,
-    ClipboardCheck,
-    Users,
-    Percent,
-    Store,
-    LogOut,
-    UserCog,
-    Menu,
-    X
-  } from 'lucide-svelte';
-
-  const adminNav = [
-    { href: '/admin', label: 'Dashboard Analitik', icon: LayoutDashboard },
-    { href: '/admin/transaksi', label: 'Riwayat Transaksi', icon: FileText },
-    { href: '/admin/produk', label: 'Master Produk', icon: Package },
-    { href: '/admin/supplier', label: 'Supplier & PO', icon: Truck },
-    { href: '/admin/stok-opname', label: 'Stock Opname', icon: ClipboardCheck },
-    { href: '/admin/member', label: 'Member & Poin', icon: Users },
-    { href: '/admin/promo', label: 'System Promo', icon: Percent },
-    { href: '/admin/akun', label: 'Manajemen Akun', icon: UserCog }
+  import Brand from '$lib/components/Brand.svelte';
+  import { LayoutDashboard, FileText, Package, Truck, ClipboardCheck, Users, Percent, LogOut, UserCog, Menu, X, ArrowUpRight } from 'lucide-svelte';
+  const groups = [
+    { label: 'Penjualan', links: [
+      { href: '/admin', label: 'Ringkasan', icon: LayoutDashboard },
+      { href: '/admin/transaksi', label: 'Transaksi & sesi kasir', icon: FileText }
+    ] },
+    { label: 'Inventori', links: [
+      { href: '/admin/produk', label: 'Produk', icon: Package },
+      { href: '/admin/supplier', label: 'Supplier', icon: Truck },
+      { href: '/admin/stok-opname', label: 'Stok opname', icon: ClipboardCheck }
+    ] },
+    { label: 'Pelanggan', links: [
+      { href: '/admin/member', label: 'Member & poin', icon: Users },
+      { href: '/admin/promo', label: 'Promo', icon: Percent }
+    ] }
   ];
-
   let isAuthReady = false;
   let isMobileMenuOpen = false;
-
-  onMount(() => {
-    const unsubscribe = authStore.subscribe((user) => {
-      if (!user) {
-        goto('/login');
-      } else if (user.role !== 'admin') {
-        goto('/kasir');
-      } else {
-        isAuthReady = true;
-      }
-    });
-    return unsubscribe;
-  });
-
-  function logout() {
-    authStore.logout();
-    goto('/login');
-  }
+  $: activeLabel = [...groups.flatMap(g => g.links), { href: '/admin/akun', label: 'Manajemen akun' }].find(l => l.href === $page.url.pathname)?.label || 'Admin';
+  onMount(() => authStore.subscribe(user => {
+    if (!user) goto('/login');
+    else if (user.role !== 'admin') goto('/kasir');
+    else isAuthReady = true;
+  }));
+  function logout() { authStore.logout(); goto('/login'); }
 </script>
-
+<svelte:head><title>{activeLabel} · VecMart</title></svelte:head>
+<svelte:window on:keydown={(e) => { if (e.key === 'Escape') isMobileMenuOpen = false; }} />
 {#if isAuthReady}
-<div class="min-h-screen flex flex-col bg-slate-100 text-slate-900 transition-opacity duration-200">
-  <!-- Admin Top Header -->
-  <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm z-20">
-    <div class="flex items-center space-x-3">
-      <button on:click={() => isMobileMenuOpen = !isMobileMenuOpen} class="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg">
-        {#if isMobileMenuOpen}
-          <X class="w-6 h-6" />
-        {:else}
-          <Menu class="w-6 h-6" />
-        {/if}
-      </button>
-      <div class="bg-sky-600 p-2 rounded-xl text-white shadow-md shadow-sky-600/20">
-        <Store class="w-5 h-5" />
-      </div>
-      <div>
-        <h1 class="text-sm sm:text-base font-black text-slate-900 tracking-wide">ADMIN PANEL</h1>
-        <p class="text-[10px] sm:text-[11px] text-sky-600 font-semibold">VecMart</p>
-      </div>
-    </div>
-
-    <!-- Admin Session Info + Logout -->
-    <div class="flex items-center space-x-2 sm:space-x-3">
-      {#if $authStore}
-        <div class="flex items-center space-x-2.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 sm:px-3 py-1.5">
-          <div class="bg-amber-100 p-1 sm:p-1.5 rounded-lg">
-            <UserCog class="w-4 h-4 text-amber-600" />
-          </div>
-          <div class="hidden sm:block">
-            <p class="text-xs font-bold text-slate-900">{$authStore.name}</p>
-            <span class="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Administrator</span>
-          </div>
+<div class="admin-shell">
+  <a class="skip-link" href="#main-content">Langsung ke konten</a>
+  {#if isMobileMenuOpen}<button class="nav-backdrop" aria-label="Tutup navigasi" on:click={() => isMobileMenuOpen = false}></button>{/if}
+  <aside class="admin-sidebar" class:nav-open={isMobileMenuOpen} aria-label="Navigasi admin">
+    <div class="sidebar-brand"><Brand /><button class="icon-button mobile-only" aria-label="Tutup navigasi" on:click={() => isMobileMenuOpen = false}><X size={20} /></button></div>
+    <div class="workspace-label"><span class="workspace-dot"></span><span>Operasional toko</span><span class="scope-tag">Admin</span></div>
+    <nav>
+      {#each groups as group}
+        <div class="nav-group"><p class="nav-group-label">{group.label}</p>
+          {#each group.links as link}
+            <a href={link.href} class:active={$page.url.pathname === link.href} aria-current={$page.url.pathname === link.href ? 'page' : undefined} on:click={() => isMobileMenuOpen = false}><svelte:component this={link.icon} size={18} strokeWidth={1.7} /><span>{link.label}</span></a>
+          {/each}
         </div>
-
-        <button
-          on:click={logout}
-          class="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl border border-red-200 transition-colors flex items-center space-x-1 text-xs font-bold"
-        >
-          <LogOut class="w-4 h-4" />
-          <span class="hidden sm:inline">Keluar</span>
-        </button>
-      {/if}
+      {/each}
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="settings-link" class:active={$page.url.pathname === '/admin/akun'} href="/admin/akun" on:click={() => isMobileMenuOpen = false}><UserCog size={18} />Manajemen akun</a>
+      <div class="sidebar-user"><span class="user-avatar">{($authStore?.name || 'A').slice(0, 1).toUpperCase()}</span><div><strong>{$authStore?.name}</strong><span>Administrator</span></div><button class="icon-button" aria-label="Keluar dari akun" title="Keluar" on:click={logout}><LogOut size={18} /></button></div>
     </div>
-  </header>
-
-  <!-- Admin Content: Sidebar + Page -->
-  <div class="flex-1 flex overflow-hidden relative">
-    <!-- Mobile Backdrop -->
-    {#if isMobileMenuOpen}
-      <div on:click={() => isMobileMenuOpen = false} class="fixed inset-0 bg-slate-900/40 z-30 md:hidden backdrop-blur-xs"></div>
-    {/if}
-
-    <!-- Admin Sidebar -->
-    <aside class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 p-4 flex flex-col justify-between shadow-lg md:shadow-sm transform transition-transform duration-200 ease-in-out {isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-y-auto">
-      <nav class="space-y-1">
-        {#each adminNav as nav}
-          <a
-            href={nav.href}
-            on:click={() => isMobileMenuOpen = false}
-            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all {$page.url.pathname === nav.href ? 'bg-sky-50 text-sky-700 border border-sky-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}"
-          >
-            <svelte:component this={nav.icon} class="w-4 h-4" />
-            <span>{nav.label}</span>
-          </a>
-        {/each}
-      </nav>
-    </aside>
-
-    <!-- Admin Main Content -->
-    <main class="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-100 w-full min-w-0">
-      <slot />
-    </main>
+  </aside>
+  <div class="admin-workspace">
+    <header class="workspace-header"><div class="flex items-center gap-3"><button class="icon-button mobile-only" aria-label="Buka navigasi" aria-expanded={isMobileMenuOpen} on:click={() => isMobileMenuOpen = true}><Menu size={20} /></button><span class="text-slate-500">VecMart</span><span class="breadcrumb-slash">/</span><span>{activeLabel}</span></div><a href="/kasir" class="cashier-link">Buka kasir <ArrowUpRight size={16} /></a></header>
+    <main id="main-content" class="admin-canvas"><slot /></main>
   </div>
 </div>
 {/if}

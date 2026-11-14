@@ -27,3 +27,6 @@ Thumbs.db
 
 # Database migrations / temporary
 drizzle/*.sql.json
+
+# Local design verification
+.taste-skill/

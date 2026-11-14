@@ -1,6 +1,7 @@
 <script lang="ts">
   import Brand from '$lib/components/Brand.svelte';
   import LandingAssistantDemo from '$lib/components/LandingAssistantDemo.svelte';
+  import { landingSales, landingSalesHours } from '$lib/data/landing-sales';
   import { onMount } from 'svelte';
   import { ArrowRight, ArrowUpRight, Check, ChevronDown, Minus, Plus, Signal, Wifi, BatteryFull } from 'lucide-svelte';
   import { authStore } from '$lib/stores/authStore';
@@ -55,11 +56,12 @@
 
 <svelte:head><title>VecMart</title><meta name="description" content="Kenali VecMart, aplikasi kasir dan inventori minimarket untuk transaksi, pengelolaan stok, sesi kasir, dan laporan penjualan dalam satu tempat." /></svelte:head>
 <svelte:window on:scroll={syncNavigation} />
-<div class="landing">
+<div class="landing" id="beranda">
   <a class="skip-link" href="#kenali">Lewati ke konten</a>
   <div class="landing-opening">
-    <div class="landing-nav-shell" class:scrolled={navScrolled}><header class="landing-header landing-width"><Brand /><nav aria-label="Navigasi utama"><a href="#asisten">Asisten AI</a><a href="#fitur">Fitur</a><a href="#alur">Cara kerja</a><a href="#pertanyaan">FAQ</a></nav><a class="landing-login" href={$authStore ? appHref : '/login'}>{$authStore ? 'Buka aplikasi' : 'Masuk'}<ArrowUpRight size={18} aria-hidden="true" /></a></header></div>
+    <div class="landing-nav-shell" class:scrolled={navScrolled}><header class="landing-header landing-width"><Brand /><nav aria-label="Navigasi utama"><a href="#beranda">Beranda</a><a href="#asisten">Asisten AI</a><a href="#fitur">Fitur</a><a href="#alur">Cara kerja</a><a href="#pertanyaan">FAQ</a></nav><a class="landing-login" href={$authStore ? appHref : '/login'}>{$authStore ? 'Buka aplikasi' : 'Masuk'}<ArrowUpRight size={18} aria-hidden="true" /></a></header></div>
     <main id="kenali">
+      <div class="landing-intro">
       <div class="landing-top">
       <section class="landing-hero landing-width" aria-labelledby="hero-title">
         <div class="landing-hero-copy"><h1 id="hero-title">Toko tertata.<br />Kasir siap.</h1><p>Kasir dan inventori minimarket, dilengkapi asisten AI untuk cek stok dan membaca penjualan lewat percakapan.</p><a class="landing-button landing-button-white" href="#asisten">Coba demo Asisten AI<ArrowRight size={20} aria-hidden="true" /></a><a class="landing-explore" href="#fitur">Lihat fitur lainnya <ChevronDown size={16} aria-hidden="true" /></a></div>
@@ -67,6 +69,7 @@
       </section>
       </div>
       <div class="landing-seam"><div class="landing-width"><p>Dari transaksi pertama<br /><strong>sampai rekap akhir hari.</strong></p><p>Kasir, stok, dan laporan saling terhubung.<br />Anda bisa fokus menjalankan toko.</p></div></div>
+      </div>
       <div class="landing-assistant-band"><section id="asisten" class="landing-assistant landing-section landing-width" aria-labelledby="assistant-title"><div><h2 id="assistant-title">Tanya langsung.<br />Lanjut bekerja.</h2><p>Asisten VecMart membantu admin mencari stok dan membaca penjualan melalui percakapan.</p><p>Perintah tambah stok yang jelas bisa langsung diproses, dengan catatan perubahan dan opsi batalkan selama 15 menit.</p><a href="#akses-asisten" on:click={openAssistantAccess}>Cara mengakses asisten <ArrowUpRight size={18} aria-hidden="true" /></a></div><LandingAssistantDemo /></section></div>
       <section id="fitur" class="landing-section landing-width" aria-labelledby="feature-title">
         <div class="landing-section-heading"><h2 id="feature-title">Kenali meja kerja Anda.</h2><p>Satu alur untuk melayani pelanggan dan menjaga toko tetap terpantau.</p></div>
@@ -80,7 +83,14 @@
             {:else if preview === 'stok'}
               <div class="landing-preview-content"><div class="landing-preview-title"><h3>Persediaan produk</h3><span>Admin</span></div>{#each products as product}<div class="landing-product"><img src={product.image} alt={product.name} width="64" height="64" loading="lazy" /><div><strong>{product.name}</strong><span>{product.detail}</span></div><strong>{product.stock}<small>pcs</small></strong></div>{/each}<div class="landing-stock-note"><Check size={18} aria-hidden="true" /><p>Stok dan harga produk dapat ditinjau sebelum membuat penyesuaian.</p></div></div>
             {:else}
-              <div class="landing-preview-content"><div class="landing-preview-title"><h3>Ringkasan penjualan</h3><span>Contoh satu hari</span></div><p class="landing-report-label">Omzet penjualan</p><p class="landing-report-value">Rp 186.000</p><div class="landing-report-chart" role="img" aria-label="Contoh omzet per jam: pukul 08 Rp 20.000, pukul 10 Rp 38.000, pukul 12 Rp 32.000, pukul 14 Rp 45.000, pukul 16 Rp 29.000, pukul 18 Rp 22.000.">{#each [{hour:'08',value:20},{hour:'10',value:38},{hour:'12',value:32},{hour:'14',value:45},{hour:'16',value:29},{hour:'18',value:22}] as bar}<div><div style:height={`${bar.value * 2.6}px`}></div><span>{bar.hour}.00</span></div>{/each}</div><div class="landing-report-stats"><div><span>Transaksi</span><strong>6 struk</strong></div><div><span>Rata-rata belanja</span><strong>Rp 31.000</strong></div></div></div>
+              <div class="landing-preview-content">
+                <div class="landing-preview-title"><h3>Ringkasan penjualan</h3><span>Contoh satu hari</span></div>
+                <p class="landing-report-label">Omzet penjualan</p><p class="landing-report-value">{money(landingSales.revenue)}</p>
+                <div class="landing-report-chart" role="img" aria-label={'Omzet per jam: ' + landingSalesHours.map(bar => bar.hour + '.00 ' + money(bar.revenue)).join(', ')}>
+                  {#each landingSalesHours as bar}<div><div style:height={`${bar.revenue / 1000 * 2.6}px`}></div><span>{bar.hour}.00</span></div>{/each}
+                </div>
+                <div class="landing-report-stats"><div><span>Laba bersih</span><strong>{money(landingSales.profit)}</strong></div><div><span>Transaksi</span><strong>{landingSales.transactions} struk</strong></div><div><span>Rata-rata belanja</span><strong>{money(landingSales.average)}</strong></div></div>
+              </div>
             {/if}
           </div>
         </div>

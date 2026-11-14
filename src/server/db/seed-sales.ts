@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { products, transactionItems, transactions, users } from './schema.js';
+import { cashierShifts, products, transactionItems, transactions, users } from './schema.js';
 
 // Additive historical demo sales. Default: preview. --apply: insert atomically.
 // Stable identifiers and a fixed random seed make subsequent runs safe to repeat.
@@ -11,6 +11,54 @@ let state = 20261114;
 function randomInt(min: number, max: number) {
   state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
   return min + Math.floor((state / 4294967296) * (max - min + 1));
+}
+
+type SeedTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+const recapNote = 'Rekap historis penjualan Oktober–November 2026';
+
+async function syncShiftRecaps(tx: SeedTransaction, sales: (typeof transactions.$inferSelect)[]) {
+  const existingShifts = await tx.select().from(cashierShifts);
+  const byId = new Map(existingShifts.map(shift => [shift.id, shift]));
+  let sequence = Math.max(1000, ...existingShifts.map(shift => Number(shift.id.match(/^shift-(\d+)$/)?.[1] || 0)));
+  const groups = new Map<string, typeof sales>();
+  for (const sale of [...sales].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))) {
+    const date = new Date(sale.createdAt.getTime() + 25200000).toISOString().slice(0, 10);
+    const key = `${date}|${sale.cashierId}`;
+    groups.set(key, [...(groups.get(key) || []), sale]);
+  }
+  let created = 0;
+  const recaps: { id: string; date: string; userId: string; transactions: number; startingCash: number; salesCash: number; expectedCash: number; actualCash: number; difference: number }[] = [];
+  for (const [key, rows] of groups) {
+    const [date, userId] = key.split('|');
+    const linkedIds = [...new Set(rows.map(row => row.shiftId).filter((id): id is string => !!id))];
+    if (linkedIds.length > 1) throw new Error('Historical sales are linked to multiple shifts; rolling back.');
+    const current = linkedIds.length ? byId.get(linkedIds[0]) : undefined;
+    if (linkedIds.length && (!current || current.notes !== recapNote || current.userId !== userId)) {
+      throw new Error('Refusing to overwrite an unrelated cashier session.');
+    }
+    const id = current?.id || `shift-${++sequence}`;
+    const startingCash = current ? Number(current.startingCash) : [100000, 150000, 200000][recaps.length % 3];
+    const salesCash = rows.filter(row => row.paymentMethod.toLowerCase() === 'cash')
+      .reduce((sum, row) => sum + Number(row.grandTotal), 0);
+    const expectedCash = startingCash + salesCash;
+    const recap = {
+      userId, clockIn: new Date(`${date}T08:00:00+07:00`), clockOut: new Date(`${date}T21:00:00+07:00`),
+      startingCash: String(startingCash), expectedCash: String(expectedCash), actualCash: String(expectedCash),
+      status: 'closed', notes: recapNote
+    };
+    if (rows.some(row => row.createdAt < recap.clockIn || row.createdAt > recap.clockOut)) throw new Error('Sale is outside the session time.');
+    if (current) await tx.update(cashierShifts).set(recap).where(eq(cashierShifts.id, id));
+    else { await tx.insert(cashierShifts).values({ id, ...recap }); created += 1; }
+    await tx.update(transactions).set({ shiftId: id }).where(inArray(transactions.id, rows.map(row => row.id)));
+    recaps.push({ id, date, userId, transactions: rows.length, startingCash, salesCash, expectedCash, actualCash: expectedCash, difference: 0 });
+  }
+  const linked = await tx.select().from(transactions).where(inArray(transactions.id, sales.map(sale => sale.id)));
+  if (linked.length !== 35 || linked.some(sale => !sale.shiftId || !recaps.some(recap => recap.id === sale.shiftId))) {
+    throw new Error('Cashier session linkage verification failed; rolling back.');
+  }
+  return { created, total: recaps.length, linkedTransactions: linked.length,
+    cashSales: recaps.reduce((sum, recap) => sum + recap.salesCash, 0),
+    months: ['2026-10', '2026-11'].map(month => ({ month, sessions: recaps.filter(recap => recap.date.startsWith(month)).length })), recaps };
 }
 
 async function main() {
@@ -105,6 +153,7 @@ async function main() {
 
   let inserted = 0;
   let renamed = 0;
+  let shiftSummary: Awaited<ReturnType<typeof syncShiftRecaps>> | undefined;
   if (apply) {
     await db.transaction(async tx => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${batch}))`);
@@ -138,10 +187,12 @@ async function main() {
           throw new Error(`Receipt does not reconcile: ${sale.invoiceNumber}; rolling back.`);
         }
       }
+      shiftSummary = await syncShiftRecaps(tx, persisted);
     });
   }
   console.log(JSON.stringify({ mode: apply ? 'applied' : 'preview', batch, summary,
     receiptLines: items.length, existing: existing.length, inserted, renamed,
+    shiftSummary,
     invoiceExamples: sales.slice(0, 3).map(sale => sale.invoiceNumber),
     paymentMethods: Object.fromEntries(['cash', 'qris', 'debit'].map(method => [method, sales.filter(s => s.paymentMethod === method).length])) }, null, 2));
 }

@@ -261,6 +261,12 @@
   function formatRp(val: number) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   }
+
+  onMount(() => {
+    const refreshStock = () => { loadPage(); };
+    window.addEventListener('vecmart:stock-changed', refreshStock);
+    return () => window.removeEventListener('vecmart:stock-changed', refreshStock);
+  });
 </script>
 
 <div class="page-content">

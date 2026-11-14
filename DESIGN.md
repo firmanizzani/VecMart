@@ -37,6 +37,12 @@ The login uses a pale-blue left panel and Public Sans. The dark-blue statement s
 
 The built-in ImageGen tool generated `static/login-minimarket.png`. Generation prompt: “A polished editorial illustration for VecMart: a friendly cashier behind a cobalt blue minimarket counter, POS touchscreen, barcode scanner, receipt printer, grocery bag and organized shelves. Flat gouache style, restrained texture, dominant #1764bf and #203c5c, powder blue highlights, sparing warm yellow and coral. Compact horizontal composition, transparent background, no text or logos.”
 
+## Assistant
+
+The assistant is accessed through a standalone blue-and-white 3D robot at the bottom-right of admin pages. Its hit target stays fixed while its eyes blink and its body moves slightly on a slow cycle. The transparent two-frame raster sprite is stored at `static/assistant-robot-sprite.png`, generated with the built-in ImageGen tool. There is no rectangular launcher container. A label appears on hover or keyboard focus. Reduced-motion settings stop these animations.
+
+The desktop chat is a nonmodal 440px floating panel so the current products or report page remains visible. It opens with a 160ms entrance. On phones it becomes a full-screen dialog with trapped focus, Escape/close support and focus return to the launcher. Messages, product choices and stock results use the same Public Sans, blue palette and readable data styles as the rest of the app. The header shows connection status, application usage and the next reset in WIB. Successful writes show before/after stock and a reversal action. Failure, quota and expired-session states do not pretend an action succeeded.
+
 ## Verification
 
 Run `npm run check` and `npm run build`. Browser visual evidence and isolated fixture checks are saved under `.taste-skill/` (local verification files, excluded from Git). Sample preview data belongs only to that verification browser and is never shipped as application data.

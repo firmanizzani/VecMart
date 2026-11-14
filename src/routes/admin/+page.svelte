@@ -286,6 +286,12 @@
     XLSX.utils.book_append_sheet(wb, ws, 'Dashboard Analitik');
     XLSX.writeFile(wb, `Laporan_Analitik_Minimarket_${today}.xlsx`);
   }
+
+  onMount(() => {
+    const refreshStock = () => { fetchLatestAnalytics(); };
+    window.addEventListener('vecmart:stock-changed', refreshStock);
+    return () => window.removeEventListener('vecmart:stock-changed', refreshStock);
+  });
 </script>
 
 <div class="page-content">

@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
   import Brand from '$lib/components/Brand.svelte';
+  import AssistantWidget from '$lib/components/AssistantWidget.svelte';
   import { LayoutDashboard, FileText, Package, Truck, ClipboardCheck, Users, Percent, LogOut, UserCog, Menu, X, ArrowUpRight } from 'lucide-svelte';
   const groups = [
     { label: 'Penjualan', links: [
@@ -57,5 +58,6 @@
     <header class="workspace-header"><div class="flex items-center gap-3"><button class="icon-button mobile-only" aria-label="Buka navigasi" aria-expanded={isMobileMenuOpen} on:click={() => isMobileMenuOpen = true}><Menu size={20} /></button><span class="text-slate-500">VecMart</span><span class="breadcrumb-slash">/</span><span>{activeLabel}</span></div><a href="/kasir" class="cashier-link">Buka kasir <ArrowUpRight size={16} /></a></header>
     <main id="main-content" class="admin-canvas"><slot /></main>
   </div>
+  <AssistantWidget />
 </div>
 {/if}

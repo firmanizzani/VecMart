@@ -1,6 +1,13 @@
 import { pgTable, text, integer, numeric, timestamp, varchar, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// Shared Gemini request counters, persisted across server restarts/instances.
+export const assistantUsage = pgTable('assistant_usage', {
+  id: text('id').primaryKey(),
+  requests: integer('requests').notNull().default(0),
+  resetsAt: timestamp('resets_at', { withTimezone: true }).notNull(),
+});
+
 // 1. Users / Employees
 export const users = pgTable('users', {
   id: text('id').primaryKey(),

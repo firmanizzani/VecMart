@@ -17,7 +17,7 @@ export function dialog(node: HTMLElement) {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      node.querySelector<HTMLButtonElement>('button[aria-label="Tutup dialog"]')?.click();
+      node.querySelector<HTMLButtonElement>('button[data-dialog-close], button[aria-label="Tutup dialog"]')?.click();
     }
     if (event.key === 'Tab') {
       const elements = focusable();

@@ -15,6 +15,13 @@
       "when": 1789093259334,
       "tag": "0001_rainy_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794625774082,
+      "tag": "0002_assistant_usage",
+      "breakpoints": true
     }
   ]
 }

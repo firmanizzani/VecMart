@@ -119,6 +119,12 @@
       isSaving = false;
     }
   }
+
+  onMount(() => {
+    const refreshStock = () => { loadPage(); };
+    window.addEventListener('vecmart:stock-changed', refreshStock);
+    return () => window.removeEventListener('vecmart:stock-changed', refreshStock);
+  });
 </script>
 
 <div class="page-content">

@@ -11,6 +11,7 @@ import { memberRoutes } from './routes/members.js';
 import { promoRoutes } from './routes/promos.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
+import { aiRoutes } from './routes/ai.js';
 
 export const app = new Elysia({ prefix: '/api' })
   .use(cors())
@@ -25,6 +26,7 @@ export const app = new Elysia({ prefix: '/api' })
   .use(memberRoutes)
   .use(promoRoutes)
   .use(transactionRoutes)
-  .use(userRoutes);
+  .use(userRoutes)
+  .use(aiRoutes);
 
 export type App = typeof app;

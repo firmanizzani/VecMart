@@ -39,7 +39,7 @@ export const stockAdjustmentRoutes = new Elysia({ prefix: '/stock-adjustments' }
   .post('/', async ({ body }: { body: any }) => {
     let maxAdjNum = 0;
     const dbAdjs = await db.select({ id: stockAdjustments.id }).from(stockAdjustments).catch(() => []);
-    const numAdjIds = dbAdjs.map(a => parseInt(a.id.replace(/[^0-9]/g, ''), 10)).filter(n => !isNaN(n));
+    const numAdjIds = dbAdjs.map(a => Number(a.id.match(/^adj-(\d+)$/)?.[1] || 0));
     if (numAdjIds.length > 0) maxAdjNum = Math.max(...numAdjIds);
     const nextAdjNum = maxAdjNum + 1;
     const id = `adj-${nextAdjNum}`;

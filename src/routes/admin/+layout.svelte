@@ -31,7 +31,7 @@
   }));
   function logout() { authStore.logout(); goto('/login'); }
 </script>
-<svelte:head><title>{activeLabel} · VecMart</title></svelte:head>
+<svelte:head><title>VecMart</title></svelte:head>
 <svelte:window on:keydown={(e) => { if (e.key === 'Escape') isMobileMenuOpen = false; }} />
 {#if isAuthReady}
 <div class="admin-shell">

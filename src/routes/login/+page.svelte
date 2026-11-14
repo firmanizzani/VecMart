@@ -66,7 +66,7 @@
 </script>
 
 
-<svelte:head><title>Masuk · VecMart</title></svelte:head>
+<svelte:head><title>VecMart</title></svelte:head>
 <div class="login-page">
   <section class="login-story" aria-label="VecMart">
     <Brand />

@@ -126,7 +126,7 @@
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Struk Digital ${trx.invoiceNumber}</title>
+          <title>VecMart</title>
           <style>
             body { font-family: monospace; padding: 20px; width: 300px; margin: 0 auto; color: #1e293b; }
             h2 { text-align: center; margin: 0 0 5px; font-size: 16px; }

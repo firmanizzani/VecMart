@@ -8,7 +8,7 @@
   onMount(() => authStore.subscribe(user => { if (!user || !['admin', 'cashier'].includes(user.role)) goto('/login'); }));
   function logout() { authStore.logout(); goto('/login'); }
 </script>
-<svelte:head><title>Kasir · VecMart</title></svelte:head>
+<svelte:head><title>VecMart</title></svelte:head>
 <div class="cashier-shell">
   <header class="cashier-header">
     <div class="flex items-center gap-5"><Brand /><span class="cashier-mode">Kasir</span></div>

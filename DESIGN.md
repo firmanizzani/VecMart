@@ -66,3 +66,13 @@ Desktop hero sizing follows viewport width, so toggling the browser bookmark bar
 The mobile floating assistant uses a compact welcome and a two-column suggestion grid. The conversation scrolls independently while the composer stays visible. The standalone /admin/asisten route remains available as a separate optional screen; the floating launcher does not navigate to it.
 
 Mobile assistant headers include a perbesar/perkecil control next to close. Floating is the default; optional fullscreen fills the visible viewport, locks background scroll, and traps keyboard focus. Switching modes keeps the same chat component mounted, preserving messages and unsent drafts. Escape minimizes fullscreen first, then closes the floating panel. Closing resets the next open to floating. The public landing preview is unchanged.
+
+## Pendapatan per kasir
+
+Admin > Transaksi & sesi kasir > Pendapatan kasir answers: how much did each cashier sell in the selected period? Uses existing VecMart blue, Public Sans, flat white surfaces, and a divided metric strip. Identity is the cashier account ID; names may coincide. The final receipt total is revenue after discounts; tendered cash and change are excluded. Cash, QRIS, debit, and other methods reconcile to the total. Admin accounts with sales are included; cashier accounts without sales show zero.
+
+Periods use inclusive Jakarta calendar dates and an exclusive next-day boundary, up to 366 days. Presets cover today, seven days, current month, and current year; custom dates and a cashier filter are available. Exports use the applied period and currently selected cashier. The new endpoint requires a signed admin session, returns no PIN or credentials, and never mutates sales or drawer balances. Cash drawer reconciliation remains in the existing session tab.
+
+The primary table places total sales beside cashier identity and ends with a period total. Desktop report content leaves a 96px lane for the floating assistant; mobile uses stacked cashier cards and bottom clearance so the final figures can scroll clear of the launcher. Date fields appear only for custom periods; all three transaction tabs remain visible.
+
+Verification: three automated report tests cover WIB date boundaries, invalid/range-limited dates, admin access, discounts/change, unknown payment methods, separate same-name accounts, zero sales, and admin checkout. Database fixtures run inside a rolled-back transaction. Browser checks cover 320/390/768/1440 widths, real October/November totals, cashier filtering, and empty periods. Evidence is local under .taste-skill/cashier-report.

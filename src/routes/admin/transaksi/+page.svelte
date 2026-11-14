@@ -1,11 +1,13 @@
 <script lang="ts">
   import LoadNotice from '$lib/components/LoadNotice.svelte';
+  import CashierRevenueReport from '$lib/components/CashierRevenueReport.svelte';
+  let revenueReport: CashierRevenueReport | undefined = undefined;
   let loadError = '';
   import { dialog } from '$lib/actions/dialog';
   import { onMount, onDestroy } from 'svelte';
   import { FileText, Search, Printer, Download, Eye, Filter, X, Clock, CheckCircle, AlertTriangle, Wallet, RefreshCw } from 'lucide-svelte';
 
-  let activeTab: 'transactions' | 'shifts' = 'transactions';
+  let activeTab: 'transactions' | 'shifts' | 'revenue' = 'transactions';
   let transactions: any[] = [];
   let shifts: any[] = [];
   let searchQuery = '';
@@ -40,7 +42,7 @@
 
   onMount(() => {
     loadData();
-    intervalId = setInterval(loadData, 4000);
+    intervalId = setInterval(() => { if (activeTab !== 'revenue') loadData(); }, 4000);
   });
 
   onDestroy(() => {
@@ -168,11 +170,11 @@
   <div class="flex justify-between items-center">
     <div>
       <h1 class="page-title">Transaksi & sesi kasir</h1>
-      <p class="text-xs text-slate-500 mt-1">Daftar struk penjualan, laporan rekap kas laci, dan audit selisih shift kasir</p>
+      <p class="text-xs text-slate-500 mt-1">Riwayat transaksi, pendapatan per kasir, dan rekap laci kasir</p>
     </div>
 
     <div class="flex items-center space-x-2">
-      <button on:click={loadData} class="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center space-x-1.5  transition-colors">
+      <button on:click={() => activeTab === 'revenue' ? revenueReport?.refresh() : loadData()} class="px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center space-x-1.5  transition-colors">
         <RefreshCw class="w-3.5 h-3.5 text-sky-600 {isRefreshing ? 'animate-spin' : ''}" />
         <span>{"Segarkan"}</span>
       </button>
@@ -185,10 +187,10 @@
       {/if}
     </div>
   </div>
-  <LoadNotice loading={isRefreshing && !transactions.length && !shifts.length} error={loadError} retry={loadData} />
+  {#if activeTab !== 'revenue'}<LoadNotice loading={isRefreshing && !transactions.length && !shifts.length} error={loadError} retry={loadData} />{/if}
 
   <!-- Navigation Tabs -->
-  <div class="scroll-tabs flex space-x-3 border-b border-slate-200 pb-1">
+  <div class="cashier-tabs scroll-tabs flex space-x-3 border-b border-slate-200 pb-1">
     <button
       on:click={() => activeTab = 'transactions'}
       class="px-4 py-2 text-xs font-semibold rounded-xl transition-colors flex items-center space-x-2 {activeTab === 'transactions' ? 'bg-sky-600 text-white  ' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
@@ -203,6 +205,7 @@
       <Clock class="w-4 h-4" />
       <span>{"Rekap sesi kasir"}</span>
     </button>
+    <button on:click={() => activeTab = 'revenue'} class="px-4 py-2 text-xs font-semibold rounded-xl transition-colors flex items-center space-x-2 {activeTab === 'revenue' ? 'bg-sky-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"><Wallet class="w-4 h-4" /><span>Pendapatan kasir</span></button>
   </div>
 
   {#if activeTab === 'transactions'}
@@ -304,7 +307,7 @@
         </tbody>
       </table></div>
     </div>
-  {:else}
+  {:else if activeTab === 'shifts'}
     <!-- Shift Audit View -->
     <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 ">
       <h2 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
@@ -376,6 +379,8 @@
         </tbody>
       </table></div>
     </div>
+  {:else}
+    <CashierRevenueReport bind:this={revenueReport} />
   {/if}
 </div>
 
@@ -445,3 +450,12 @@
     </div>
   </div>
 {/if}
+
+<style>
+  @media (max-width: 767px) {
+    .cashier-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; overflow:visible; }
+    .cashier-tabs button { margin:0; padding:10px 6px; min-width:0; justify-content:center; white-space:normal; font-size:12px; text-align:center; }
+    .cashier-tabs :global(svg) { display:none; }
+    .cashier-tabs button span { margin:0; }
+  }
+</style>

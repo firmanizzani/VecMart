@@ -54,7 +54,7 @@
   });
 </script>
 
-<svelte:head><title>VecMart</title><meta name="description" content="Kenali VecMart, aplikasi kasir dan inventori minimarket untuk transaksi, pengelolaan stok, sesi kasir, dan laporan penjualan dalam satu tempat." /></svelte:head>
+<svelte:head><meta name="description" content="Kenali VecMart, aplikasi kasir dan inventori minimarket untuk transaksi, pengelolaan stok, sesi kasir, dan laporan penjualan dalam satu tempat." /></svelte:head>
 <svelte:window on:scroll={syncNavigation} />
 <div class="landing" id="beranda">
   <a class="skip-link" href="#kenali">Lewati ke konten</a>
@@ -64,7 +64,7 @@
       <div class="landing-intro">
       <div class="landing-top">
       <section class="landing-hero landing-width" aria-labelledby="hero-title">
-        <div class="landing-hero-copy"><h1 id="hero-title">Toko tertata.<br />Kasir siap.</h1><p>Kasir dan inventori minimarket, dilengkapi asisten AI untuk cek stok dan membaca penjualan lewat percakapan.</p><a class="landing-button landing-button-white" href="#asisten">Coba demo Asisten AI<ArrowRight size={20} aria-hidden="true" /></a><a class="landing-explore" href="#fitur">Lihat fitur lainnya <ChevronDown size={16} aria-hidden="true" /></a></div>
+        <div class="landing-hero-copy"><h1 id="hero-title">Toko tertata.<br />Kasir siap.</h1><p>Kasir dan inventori minimarket, dilengkapi asisten AI untuk cek stok dan membaca penjualan lewat percakapan.</p><a class="landing-button landing-button-white" href="#asisten">Demo Asisten AI<ArrowRight size={20} aria-hidden="true" /></a><a class="landing-explore" href="#fitur">Lihat fitur lainnya <ChevronDown size={16} aria-hidden="true" /></a></div>
         <div class="landing-hero-art landing-devices"><div class="landing-device-stage"><div class="landing-laptop"><div class="landing-laptop-screen"><span class="landing-laptop-camera" aria-hidden="true"></span><img src="/landing/admin-preview.jpg" alt="Dashboard admin VecMart: omzet, laba bersih, grafik pendapatan, dan stok produk dengan data contoh." width="1440" height="900" fetchpriority="high" /></div><div class="landing-laptop-base" aria-hidden="true"></div></div><div class="landing-phone"><div class="landing-phone-screen"><div class="landing-phone-status" data-ui aria-hidden="true"><span>9:41</span><div><Signal /><Wifi /><BatteryFull /></div></div><img src="/landing/ai-preview.jpg" alt="Asisten AI VecMart pada ponsel, memperlihatkan contoh penambahan stok dari 126 menjadi 176 pcs melalui percakapan." width="390" height="780" fetchpriority="high" /><span class="landing-phone-camera" aria-hidden="true"></span><span class="landing-phone-home" aria-hidden="true"></span></div></div></div></div>
       </section>
       </div>

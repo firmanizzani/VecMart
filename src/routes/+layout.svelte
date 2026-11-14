@@ -19,6 +19,16 @@
   });
 </script>
 
+<svelte:head>
+  <title>VecMart</title>
+  <meta property="og:title" content="VecMart" />
+  <meta property="og:site_name" content="VecMart" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="Sistem kasir dan inventori minimarket." />
+  <meta name="twitter:title" content="VecMart" />
+  <meta name="twitter:description" content="Sistem kasir dan inventori minimarket." />
+</svelte:head>
+
 {#if isMounted || $page.url.pathname === '/'}
   <slot />
 {:else}

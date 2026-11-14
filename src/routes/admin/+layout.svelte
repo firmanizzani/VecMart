@@ -53,7 +53,6 @@
   }));
   function logout() { authStore.logout(); goto('/login'); }
 </script>
-<svelte:head><title>VecMart</title></svelte:head>
 <svelte:window on:keydown={(e) => { if (e.key === 'Escape' && isMobileMenuOpen) closeNavigation(); }} />
 {#if isAuthReady}
 <div class="admin-shell">

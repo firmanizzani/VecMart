@@ -66,7 +66,6 @@
 </script>
 
 
-<svelte:head><title>VecMart</title></svelte:head>
 <div class="login-page">
   <section class="login-story" aria-label="VecMart">
     <Brand />

@@ -141,6 +141,12 @@
 .assistant-floating-content { height: 100%; min-height: 0; gap: 0; display: flex; flex-direction: column; }
 .assistant-floating-header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 12px; padding: 12px 18px 13px; background: #edf5ff; border-bottom: 1px solid #dce7f4; flex-shrink: 0; }
 .assistant-floating-header > div { display: flex; align-items: center; gap: 9px; color: var(--vm-blue); }
+.assistant-floating-header > .assistant-window-actions { gap: 0; }
+.assistant-window-actions .assistant-expand { display: none; }
+.assistant-window-actions .assistant-expand.is-expanded { display: inline-flex; }
+@media (max-width: 767px), (max-width: 1000px) and (max-height: 560px) {
+  .assistant-window-actions .assistant-expand { display: inline-flex; min-width: 44px; min-height: 44px; }
+}
 .assistant-floating-header h2 { color: #243f60; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
 .assistant-floating-header > p { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 11px; color: #506b89; }
 .assistant-floating-header small { grid-column: 1 / -1; font-size: 11px; color: #526b87; margin-top: 5px; }

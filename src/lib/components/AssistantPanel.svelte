@@ -3,10 +3,12 @@
   import AssistantAvatar from '$lib/components/AssistantAvatar.svelte';
   export let floating = false;
   export let close: () => void = () => {};
+  export let expanded = false;
+  export let toggleExpanded: (() => void) | undefined = undefined;
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { authStore } from '$lib/stores/authStore';
-  import { ArrowUp, ArrowUpRight, Bot, Check, ChevronRight, CircleHelp, Clock3, Loader2, MessageSquare, PackagePlus, RefreshCw, RotateCcw, Trash2, TriangleAlert, X } from 'lucide-svelte';
+  import { ArrowUp, ArrowUpRight, Bot, Check, ChevronRight, CircleHelp, Clock3, Loader2, Maximize2, MessageSquare, Minimize2, PackagePlus, RefreshCw, RotateCcw, Trash2, TriangleAlert, X } from 'lucide-svelte';
   import type { AssistantReply } from '$lib/ai/types';
 
   type Entry = { id: string; role: 'user' | 'assistant'; text: string; reply?: AssistantReply; error?: boolean; resolved?: boolean; retry?: { requestId: string; message: string } };
@@ -132,7 +134,14 @@
 
 <div class="assistant-page" class:assistant-floating-content={floating}>
   {#if floating}
-    <header class="assistant-floating-header"><div><AssistantAvatar size={26} /><h2>Asisten VecMart</h2></div><button class="icon-button" aria-label="Tutup asisten" data-dialog-close on:click={close}><X size={19} /></button><p><span class="assistant-connection"><span class:connected={configured && !sessionExpired && !statusError}></span>{statusLoading ? 'Menghubungkan…' : configured && !sessionExpired && !statusError ? 'Gemini terhubung' : 'Perlu pengaturan'}</span>{#if usage}<span>{usage.used}/{usage.limit} hari ini</span>{/if}</p>{#if usage}<small>Kuota VecMart reset {resetLabel}</small>{/if}</header>
+    <header class="assistant-floating-header">
+      <div><AssistantAvatar size={26} /><h2>Asisten VecMart</h2></div>
+      <div class="assistant-window-actions">
+        {#if toggleExpanded}<button class="icon-button assistant-expand" class:is-expanded={expanded} aria-label={expanded ? 'Perkecil asisten' : 'Perbesar asisten'} title={expanded ? 'Kembali ke floating' : 'Layar penuh'} aria-pressed={expanded} data-dialog-close={expanded ? '' : undefined} on:click={toggleExpanded}>{#if expanded}<Minimize2 size={18} />{:else}<Maximize2 size={18} />{/if}</button>{/if}
+        <button class="icon-button" aria-label="Tutup asisten" data-dialog-close on:click={close}><X size={19} /></button>
+      </div>
+      <p><span class="assistant-connection"><span class:connected={configured && !sessionExpired && !statusError}></span>{statusLoading ? 'Menghubungkan…' : configured && !sessionExpired && !statusError ? 'Gemini terhubung' : 'Perlu pengaturan'}</span>{#if usage}<span>{usage.used}/{usage.limit} hari ini</span>{/if}</p>{#if usage}<small>Kuota VecMart reset {resetLabel}</small>{/if}
+    </header>
   {:else}
   <div class="assistant-heading">
     <div><h1 class="page-title">Asisten VecMart</h1><p>Tanya laporan toko atau kelola stok melalui percakapan.</p></div>

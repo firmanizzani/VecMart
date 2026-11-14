@@ -2,7 +2,9 @@
   import { onMount, tick } from 'svelte';
   import AssistantPanel from './AssistantPanel.svelte';
   import AssistantAvatar from './AssistantAvatar.svelte';
+  import { dialog } from '$lib/actions/dialog';
   let open = false;
+  let expanded = false;
   let launcher: HTMLButtonElement;
   let visibleHeight = 0;
   let bottomOffset = 0;
@@ -15,7 +17,22 @@
     });
     return { destroy() { cancelAnimationFrame(frame); } };
   }
-  async function close() { open = false; await tick(); launcher?.focus(); }
+  function panelMode(node: HTMLElement, fullscreen: boolean) {
+    let modal: ReturnType<typeof dialog> | undefined;
+    function sync() {
+      if (fullscreen && !modal) {
+        modal = dialog(node);
+        node.setAttribute('aria-label', 'Asisten VecMart');
+      } else if (!fullscreen && modal) {
+        modal.destroy(); modal = undefined;
+        node.removeAttribute('role'); node.removeAttribute('aria-modal');
+        node.tabIndex = -1;
+      }
+    }
+    sync();
+    return { update(value: boolean) { fullscreen = value; sync(); }, destroy() { modal?.destroy(); } };
+  }
+  async function close() { open = false; expanded = false; await tick(); launcher?.focus(); }
   onMount(() => {
     const viewport = window.visualViewport;
     function updateViewport() {
@@ -37,7 +54,7 @@
 </script>
 <svelte:window on:keydown={(event) => { if (open && event.key === 'Escape') { event.preventDefault(); close(); } }} />
 {#if open}
-  <section id="vecmart-assistant-panel" class="assistant-widget-panel" class:keyboard-open={keyboardOpen} style={`--assistant-visible-height: ${visibleHeight}px; --assistant-bottom-offset: ${bottomOffset}px`} use:panelFocus aria-label="Asisten VecMart"><AssistantPanel floating {close} /></section>
+  <section id="vecmart-assistant-panel" class="assistant-widget-panel" class:expanded class:keyboard-open={keyboardOpen} style={`--assistant-visible-height: ${visibleHeight}px; --assistant-bottom-offset: ${bottomOffset}px`} use:panelFocus use:panelMode={expanded} aria-label="Asisten VecMart"><AssistantPanel floating {close} {expanded} toggleExpanded={() => expanded = !expanded} /></section>
 {/if}
 <button class="assistant-launcher" bind:this={launcher} on:click={() => open ? close() : open = true} aria-label={open ? 'Tutup Asisten VecMart' : 'Buka Asisten VecMart'} aria-expanded={open} aria-controls="vecmart-assistant-panel"><AssistantAvatar size={96} mascot /><span class="assistant-launcher-label">{open ? 'Tutup asisten' : 'Asisten VecMart'}</span></button>
 
@@ -55,5 +72,8 @@
     .assistant-widget-panel { right: 12px; bottom: 12px; width: min(440px, calc(100vw - 24px)); height: calc(100dvh - 24px); }
   }
   .assistant-widget-panel.keyboard-open { bottom: calc(var(--assistant-bottom-offset) + 12px); height: min(560px, calc(var(--assistant-visible-height) - 24px)); }
+  .assistant-widget-panel.expanded { left: 0; right: 0; bottom: var(--assistant-bottom-offset); width: 100%; height: var(--assistant-visible-height); border: 0; border-radius: 0; box-shadow: none; }
+  .assistant-widget-panel.expanded :global(.assistant-floating-header) { padding-top: max(10px,env(safe-area-inset-top)); }
+  .assistant-widget-panel.expanded :global(.assistant-composer) { padding-bottom: max(8px,env(safe-area-inset-bottom)); }
   @media (prefers-reduced-motion: reduce) { .assistant-launcher { transition: none; } .assistant-widget-panel { animation: none; } }
 </style>

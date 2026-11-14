@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ProductImage from '$lib/components/ProductImage.svelte';
   import LoadNotice from '$lib/components/LoadNotice.svelte';
   let analyticsError = '';
   let revenueError = '';
@@ -365,7 +366,7 @@
 
   <div class="dashboard-lower">
     <section><div class="section-heading"><h2>Produk terlaris</h2><a href="/admin/produk">Lihat produk →</a></div>
-      {#if analytics.topProducts.length}<div class="overflow-x-auto"><div class="data-table-scroll"><table><thead><tr><th class="text-left">Produk</th><th class="text-right">Terjual</th><th class="text-right">Pendapatan</th></tr></thead><tbody>{#each analytics.topProducts.slice(0,5) as tp}<tr class="border-b border-slate-100"><td class="pr-4"><span class="font-medium">{tp.name}</span><span class="block text-xs text-slate-500 mt-1">{tp.category}</span></td><td class="text-right whitespace-nowrap">{tp.soldQty} pcs</td><td class="text-right whitespace-nowrap">{formatRp(tp.revenue)}</td></tr>{:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}</tbody></table></div></div>{:else}<div class="data-empty">Produk terlaris akan muncul setelah ada penjualan.</div>{/if}
+      {#if analytics.topProducts.length}<div class="overflow-x-auto"><div class="data-table-scroll"><table><thead><tr><th class="text-left">Produk</th><th class="text-right">Terjual</th><th class="text-right">Pendapatan</th></tr></thead><tbody>{#each analytics.topProducts.slice(0,5) as tp}<tr class="border-b border-slate-100"><td class="pr-4"><div class="flex items-center gap-3"><div class="top-product-photo"><ProductImage src={tp.imageUrl || ''} name={tp.name} /></div><div><span class="font-medium">{tp.name}</span><span class="block text-xs text-slate-500 mt-1">{tp.category}</span></div></div></td><td class="text-right whitespace-nowrap">{tp.soldQty} pcs</td><td class="text-right whitespace-nowrap">{formatRp(tp.revenue)}</td></tr>{:else}<tr><td colspan="12"><div class="data-empty">Belum ada data yang sesuai untuk ditampilkan.</div></td></tr>{/each}</tbody></table></div></div>{:else}<div class="data-empty">Produk terlaris akan muncul setelah ada penjualan.</div>{/if}
     </section>
     <section><div class="section-heading"><h2>Stok perlu perhatian</h2><a href="/admin/produk">Kelola stok →</a></div>
       {#if analytics.lowStockAlerts.length}{#each analytics.lowStockAlerts.slice(0,5) as ls}<div class="stock-row"><div><h3>{ls.name}</h3><p>Batas minimum {ls.minAlert} pcs</p></div><span>Sisa {ls.stock} pcs</span></div>{/each}{:else}<div class="data-empty">Tidak ada produk di bawah batas minimum stok.</div>{/if}

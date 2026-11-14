@@ -31,6 +31,12 @@ Below 768px, a fixed total opens the full cart. Product categories scroll within
 
 Dialogs trap focus, close with Escape where a close action exists, restore focus, and keep long content scrollable. Motion is limited to control feedback and functional loading indicators, with reduced-motion support.
 
+## Login illustration
+
+The login uses a pale-blue left panel and Public Sans. The dark-blue statement sits above an unframed illustration, without a feature row or extra illustration container. This quiet left composition is the user's preferred direction. The custom raster illustration shows an Indonesian minimarket checkout, with a cashier, POS terminal, scanner, receipt printer and stocked shelves. Grocery packaging adds warm accents. The right side has a bordered white form card on a pale neutral-blue surface, with a divided account-role note; authentication behavior remains unchanged. On phones the decorative panel is hidden to prioritize signing in. The copyright footer, including “All rights reserved.”, remains visible at every screen size.
+
+The built-in ImageGen tool generated `static/login-minimarket.png`. Generation prompt: “A polished editorial illustration for VecMart: a friendly cashier behind a cobalt blue minimarket counter, POS touchscreen, barcode scanner, receipt printer, grocery bag and organized shelves. Flat gouache style, restrained texture, dominant #1764bf and #203c5c, powder blue highlights, sparing warm yellow and coral. Compact horizontal composition, transparent background, no text or logos.”
+
 ## Verification
 
 Run `npm run check` and `npm run build`. Browser visual evidence and isolated fixture checks are saved under `.taste-skill/` (local verification files, excluded from Git). Sample preview data belongs only to that verification browser and is never shipped as application data.

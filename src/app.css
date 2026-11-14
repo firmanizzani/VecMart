@@ -71,25 +71,29 @@
   .field-help { color: var(--vm-muted); font-size: 12px; margin-top: 8px; }
   .form-error { padding: 12px; color: #a12929; background: #fff1f0; border-radius: 8px; display: flex; gap: 8px; font-size: 13px; }
   .form-error svg { flex-shrink: 0; }
-  .login-page { min-height: 100dvh; display: grid; grid-template-columns: 1.05fr 1fr; background: #fff; }
-  .login-story { background: #e8f2ff; display: flex; flex-direction: column; justify-content: space-between; padding: 48px 56px 32px; margin: 12px; border-radius: 16px; }
-  .login-message { margin: 80px 0; max-width: 500px; }
-  .login-message .login-statement { font-size: clamp(38px, 4.2vw, 62px); line-height: 1.1; letter-spacing: -2px; font-weight: 500; color: #203c5c; }
-  .login-message > p { margin-top: 26px; font-size: 16px; color: #49698f; max-width: 36ch; line-height: 1.7; }
-  .login-workflow { display: flex; gap: 0; margin-top: 56px; border-top: 1px solid #bbd5f2; }
-  .login-workflow span { padding: 17px 20px 0 0; margin-right: 20px; font-size: 12px; color: #3d6290; }
-  .login-story-footer { display: flex; justify-content: space-between; gap: 20px; color: #49698f; font-size: 11px; }
-  .login-form-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px; position: relative; }
-  .login-form-content { width: 100%; max-width: 360px; }
+  .top-product-photo { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 8px; background: #f3f7fc; color: #6c7d90; overflow: hidden; padding: 4px; }
+  .top-product-photo img { width: 100%; height: 100%; object-fit: contain; }
+  .login-page { min-height: 100dvh; display: grid; grid-template-columns: 1.05fr 1fr; background: #f3f7fc; padding: 16px; }
+  .login-story { background: #e8f2ff; display: flex; flex-direction: column; justify-content: space-between; padding: 36px 44px 24px; border-radius: 16px; min-width: 0; }
+  .login-message { margin: 28px 0; width: 100%; max-width: 560px; align-self: center; }
+  .login-message .login-statement { margin-top: 0; max-width: none; font-size: clamp(30px, 3.4vw, 48px); line-height: 1.12; letter-spacing: -.035em; font-weight: 500; color: #203c5c; }
+  .login-statement span { color: inherit; }
+  .login-message > p { margin-top: 18px; font-size: 15px; color: #49698f; max-width: 42ch; line-height: 1.7; }
+  .login-illustration { display: block; width: 100%; height: auto; max-width: 560px; margin: 24px auto 0; }
+  .login-story-footer { display: flex; gap: 20px; color: #49698f; font-size: 11px; }
+  .login-form-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 44px 100px; position: relative; }
+  .login-form-content { width: 100%; max-width: 440px; background: #fff; border: 1px solid #dce5f0; border-radius: 16px; padding: 36px; }
   .login-form-heading { margin-bottom: 32px; }
-  .login-form-heading h1 { font-size: 27px; letter-spacing: -.8px; font-weight: 600; }
+  .login-form-heading h1 { font-size: 29px; letter-spacing: -.8px; font-weight: 600; }
   .login-form-heading p { font-size: 14px; line-height: 1.7; margin-top: 10px; color: var(--vm-muted); }
   .pin-input { padding-right: 52px !important; }
   .pin-toggle { position: absolute; right: 7px; top: 6px; width: 36px; height: 36px; display: grid; place-items: center; color: var(--vm-muted); border-radius: 6px; }
   .pin-toggle:hover { background: var(--vm-frame); }
   .login-submit { width: 100%; margin-top: 8px; justify-content: space-between; height: 48px; }
-  .login-note { text-align: center; font-size: 12px; color: var(--vm-muted); margin-top: 23px; }
-  .login-bottom { position: absolute; bottom: 32px; font-size: 11px; color: var(--vm-muted); }
+  .login-note { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; color: var(--vm-muted); margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--vm-line); line-height: 1.6; }
+  .login-note svg { flex-shrink: 0; margin-top: 1px; color: #416b9b; }
+  .login-bottom { position: absolute; bottom: 20px; left: 16px; right: 16px; text-align: center; font-size: 11px; line-height: 1.8; color: var(--vm-muted); }
+  .login-bottom p + p { margin-top: 3px; }
   .login-mobile-brand { display: none; }
   .cashier-shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
   .cashier-header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--vm-frame); gap: 12px; }
@@ -131,8 +135,9 @@
   .nav-backdrop { position: fixed; inset: 0; background: #17222f66; z-index: 40; }
   .workspace-header { padding-left: 12px; }
   .admin-canvas { padding: 24px; }
-  .login-story { padding: 36px; }
-  .login-form-panel { padding: 36px; }
+  .login-story { padding: 28px; }
+  .login-form-panel { padding: 70px 24px 100px; }
+  .login-form-content { padding: 28px; }
 }
 @media (max-width: 640px) {
   .admin-workspace { padding: 0; }
@@ -147,9 +152,10 @@
   .admin-canvas .flex.space-x-3:has(input) > * { margin-left: 0; }
   .admin-canvas .flex.space-x-3:has(input) > .relative { flex-basis: 100%; }
   .admin-canvas table { min-width: 620px; }
-  .login-page { display: block; }
+  .login-page { display: block; padding: 0; }
   .login-story { display: none; }
-  .login-form-panel { min-height: 100dvh; padding: 100px 24px; }
+  .login-form-panel { min-height: 100dvh; padding: 116px 20px 108px; justify-content: center; }
+  .login-form-content { padding: 28px 24px; }
   .login-mobile-brand { display: block; position: absolute; top: 32px; left: 24px; }
   .login-bottom { bottom: 24px; }
   .cashier-header { min-height: 64px; padding: 0 16px; }
@@ -332,7 +338,6 @@ kbd { font-family: inherit; font-size: 11px; border: 1px solid #c6dbf2; padding:
 .product-identity svg { color: #7c8997; }
 .dashboard-stats { padding-top: 18px; padding-bottom: 18px; }
 .dashboard-stat strong { margin-top: 6px; margin-bottom: 4px; }
-.login-message > .login-statement { margin-top: 0; max-width: none; color: #203c5c; font-size: clamp(38px,4.2vw,62px); line-height: 1.1; }
 
 /* Blue surfaces distinguish an active workspace from disabled controls. */
 .admin-canvas .text-sky-600, .admin-canvas .text-sky-700 { color: #175da9; }

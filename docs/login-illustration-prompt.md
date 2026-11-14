@@ -1,0 +1,7 @@
+# VecMart login illustration
+
+Generated using the built-in ImageGen tool with a transparent background. Asset: `static/login-minimarket.png`.
+
+## Generation prompt
+
+Use case: illustration-story. Create a polished editorial illustration asset for the left panel of VecMart, an Indonesian minimarket point-of-sale login page. A small tidy neighborhood minimarket checkout vignette: a friendly cashier behind a cobalt blue counter, angled POS touchscreen, barcode scanner, small receipt roll, paper shopping bag with groceries, a well-organized short shelf of colorful packaged goods behind and to the right. Contemporary flat gouache illustration with crisp, slightly organic contours, restrained subtle paper texture within the objects, confident graphic shapes and sophisticated proportions. Not 3D, not an icon, not a generic corporate team illustration. Front three-quarter view, broad horizontal compact composition about 3:2 aspect, all subjects contained with generous transparent margins, no background scenery. Palette dominant VecMart blue #1764bf and deep navy #203c5c, powder blue highlights #e8f2ff, warm pale yellow and muted coral used sparingly on groceries. Friendly everyday Indonesian retail atmosphere, calm professional feeling. No text, no letters, no logos, no captions, no UI cards floating around. This asset will sit on a flat pale blue #e8f2ff panel beneath a heading. Genuinely transparent background.

@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
-  import { Store, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-svelte';
+  import { UsersRound, Eye, EyeOff, Loader2, AlertCircle, ArrowRight } from 'lucide-svelte';
 
   let email = '';
   let pinCode = '';
@@ -70,10 +70,10 @@
 <div class="login-page">
   <section class="login-story" aria-label="VecMart">
     <Brand />
-    <div class="login-message"><p class="login-statement">Toko tertata.<br />Transaksi lancar.</p><p>Dari penjualan pertama hingga rekap akhir hari, kelola operasional toko Anda bersama VecMart.</p>
-      <div class="login-workflow"><span>Produk</span><span>Transaksi</span><span>Rekap harian</span></div>
+    <div class="login-message"><p class="login-statement">Toko tertata.<br /><span>Transaksi lancar.</span></p><p>Dari penjualan pertama hingga rekap akhir hari, kelola operasional toko Anda bersama VecMart.</p>
+      <img class="login-illustration" src="/login-minimarket.png" alt="" width="1536" height="1024" fetchpriority="high" />
     </div>
-    <div class="login-story-footer"><span>VecMart · Sistem kasir & inventori</span><span>© {new Date().getFullYear()}</span></div>
+    <div class="login-story-footer"><span>VecMart · Sistem kasir & inventori</span></div>
   </section>
   <main class="login-form-panel">
     <div class="login-mobile-brand"><Brand /></div>
@@ -83,10 +83,10 @@
         <div class="field"><label for="email">Email akun</label><input id="email" type="email" bind:value={email} placeholder="nama@toko.com" autocomplete="email" required /></div>
         <div class="field"><label for="pin">PIN akun</label><div class="relative"><input id="pin" type={showPin ? 'text' : 'password'} bind:value={pinCode} placeholder="Masukkan 6 digit PIN" maxlength={6} minlength={6} inputmode="numeric" pattern={'[0-9]{6}'} autocomplete="current-password" aria-describedby="pin-help" required class="pin-input" /><button type="button" on:click={() => showPin = !showPin} class="pin-toggle" aria-label={showPin ? 'Sembunyikan PIN' : 'Tampilkan PIN'} aria-pressed={showPin}>{#if showPin}<EyeOff size={18} />{:else}<Eye size={18} />{/if}</button></div><p id="pin-help" class="field-help">Gunakan PIN 6 digit yang terdaftar untuk akun Anda.</p></div>
         {#if errorMsg}<div class="form-error" role="alert"><AlertCircle size={18} /><span>{errorMsg}</span></div>{/if}
-        <button type="submit" disabled={isLoading} class="primary-button login-submit">{#if isLoading}<Loader2 size={18} class="animate-spin" /><span>Memverifikasi…</span>{:else}<span>Masuk ke toko</span><span aria-hidden="true">→</span>{/if}</button>
+        <button type="submit" disabled={isLoading} class="primary-button login-submit">{#if isLoading}<Loader2 size={18} class="animate-spin" /><span>Memverifikasi…</span>{:else}<span>Masuk ke toko</span><ArrowRight size={18} aria-hidden="true" />{/if}</button>
       </form>
-      <p class="login-note">Akses kasir dan admin sesuai peran akun Anda.</p>
+      <p class="login-note"><UsersRound size={17} aria-hidden="true" /><span>Akses kasir dan admin sesuai peran akun Anda.</span></p>
     </div>
-    <p class="login-bottom">Satu tempat untuk operasional toko Anda.</p>
+    <footer class="login-bottom"><p>Satu tempat untuk operasional toko Anda.</p><p>© {new Date().getFullYear()} VecMart. All rights reserved.</p></footer>
   </main>
 </div>

@@ -77,6 +77,7 @@ async function getDashboardData(dateFrom: Date | null, dateTo: Date | null) {
     const dbTopSelling = await db
       .select({
         name: transactionItems.productName,
+        imageUrl: sql<string | null>`MAX(${products.imageUrl})`,
         soldQty: sql<number>`SUM(${transactionItems.quantity})::int`,
         revenue: sql<number>`SUM(${transactionItems.subtotal})::numeric`,
         categoryId: products.categoryId,
@@ -126,6 +127,7 @@ async function getDashboardData(dateFrom: Date | null, dateTo: Date | null) {
 
     const topProducts = dbTopSelling.map(tp => ({
       name: tp.name,
+      imageUrl: tp.imageUrl,
       category: tp.categoryName || 'Lainnya',
       soldQty: Number(tp.soldQty || 0),
       revenue: Number(tp.revenue || 0)

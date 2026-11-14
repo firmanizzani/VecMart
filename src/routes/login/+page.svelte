@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
-  import { UsersRound, Eye, EyeOff, Loader2, AlertCircle, ArrowRight } from 'lucide-svelte';
+  import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-svelte';
 
   let email = '';
   let pinCode = '';
@@ -78,15 +78,15 @@
   <main class="login-form-panel">
     <div class="login-mobile-brand"><Brand /></div>
     <div class="login-form-content">
-      <div class="login-form-heading"><h1>Masuk ke VecMart</h1><p>Selamat datang kembali. Gunakan akun toko Anda untuk melanjutkan.</p></div>
-      <form on:submit|preventDefault={handleLogin} class="space-y-5">
+      <div class="login-form-heading"><h1>Selamat datang kembali</h1><p>Masuk untuk mulai mengelola toko.</p></div>
+      <form on:submit|preventDefault={handleLogin} class="login-form">
         <div class="field"><label for="email">Email akun</label><input id="email" type="email" bind:value={email} placeholder="nama@toko.com" autocomplete="email" required /></div>
         <div class="field"><label for="pin">PIN akun</label><div class="relative"><input id="pin" type={showPin ? 'text' : 'password'} bind:value={pinCode} placeholder="Masukkan 6 digit PIN" maxlength={6} minlength={6} inputmode="numeric" pattern={'[0-9]{6}'} autocomplete="current-password" aria-describedby="pin-help" required class="pin-input" /><button type="button" on:click={() => showPin = !showPin} class="pin-toggle" aria-label={showPin ? 'Sembunyikan PIN' : 'Tampilkan PIN'} aria-pressed={showPin}>{#if showPin}<EyeOff size={18} />{:else}<Eye size={18} />{/if}</button></div><p id="pin-help" class="field-help">Gunakan PIN 6 digit yang terdaftar untuk akun Anda.</p></div>
         {#if errorMsg}<div class="form-error" role="alert"><AlertCircle size={18} /><span>{errorMsg}</span></div>{/if}
-        <button type="submit" disabled={isLoading} class="primary-button login-submit">{#if isLoading}<Loader2 size={18} class="animate-spin" /><span>Memverifikasi…</span>{:else}<span>Masuk ke toko</span><ArrowRight size={18} aria-hidden="true" />{/if}</button>
+        <button type="submit" disabled={isLoading} class="primary-button login-submit">{#if isLoading}<Loader2 size={18} class="animate-spin" /><span>Memverifikasi…</span>{:else}<span>Masuk</span>{/if}</button>
       </form>
-      <p class="login-note"><UsersRound size={17} aria-hidden="true" /><span>Akses kasir dan admin sesuai peran akun Anda.</span></p>
+      <p class="login-note">Akses admin dan kasir mengikuti peran akun Anda.</p>
     </div>
-    <footer class="login-bottom"><p>Satu tempat untuk operasional toko Anda.</p><p>© {new Date().getFullYear()} VecMart. All rights reserved.</p></footer>
+    <footer class="login-bottom"><p>© {new Date().getFullYear()} VecMart. All rights reserved.</p></footer>
   </main>
 </div>

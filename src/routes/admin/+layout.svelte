@@ -1,10 +1,11 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
   import Brand from '$lib/components/Brand.svelte';
   import AssistantWidget from '$lib/components/AssistantWidget.svelte';
+  import { dialog } from '$lib/actions/dialog';
   import { LayoutDashboard, FileText, Package, Truck, ClipboardCheck, Users, Percent, LogOut, UserCog, Menu, X, ArrowUpRight } from 'lucide-svelte';
   const groups = [
     { label: 'Penjualan', links: [
@@ -23,6 +24,27 @@
   ];
   let isAuthReady = false;
   let isMobileMenuOpen = false;
+  let navigationTrigger: HTMLButtonElement;
+  async function closeNavigation() {
+    isMobileMenuOpen = false;
+    await tick();
+    if (matchMedia('(max-width: 1100px)').matches) navigationTrigger?.focus();
+  }
+  function mobileNavigation(node: HTMLElement, open: boolean) {
+    const media = matchMedia('(max-width: 1100px)');
+    let active: ReturnType<typeof dialog> | undefined;
+    function sync() {
+      if (open && media.matches && !active) {
+        active = dialog(node);
+        node.setAttribute('aria-label', 'Navigasi admin');
+      } else if ((!open || !media.matches) && active) {
+        active.destroy(); active = undefined;
+        node.removeAttribute('role'); node.removeAttribute('aria-modal'); node.removeAttribute('tabindex');
+      }
+    }
+    sync(); media.addEventListener('change', sync);
+    return { update(value: boolean) { open = value; sync(); }, destroy() { active?.destroy(); media.removeEventListener('change', sync); } };
+  }
   $: activeLabel = [...groups.flatMap(g => g.links), { href: '/admin/akun', label: 'Manajemen akun' }].find(l => l.href === $page.url.pathname)?.label || 'Admin';
   onMount(() => authStore.subscribe(user => {
     if (!user) goto('/login');
@@ -32,13 +54,13 @@
   function logout() { authStore.logout(); goto('/login'); }
 </script>
 <svelte:head><title>VecMart</title></svelte:head>
-<svelte:window on:keydown={(e) => { if (e.key === 'Escape') isMobileMenuOpen = false; }} />
+<svelte:window on:keydown={(e) => { if (e.key === 'Escape' && isMobileMenuOpen) closeNavigation(); }} />
 {#if isAuthReady}
 <div class="admin-shell">
   <a class="skip-link" href="#main-content">Langsung ke konten</a>
-  {#if isMobileMenuOpen}<button class="nav-backdrop" aria-label="Tutup navigasi" on:click={() => isMobileMenuOpen = false}></button>{/if}
-  <aside class="admin-sidebar" class:nav-open={isMobileMenuOpen} aria-label="Navigasi admin">
-    <div class="sidebar-brand"><Brand /><button class="icon-button mobile-only" aria-label="Tutup navigasi" on:click={() => isMobileMenuOpen = false}><X size={20} /></button></div>
+  {#if isMobileMenuOpen}<button class="nav-backdrop" aria-label="Tutup navigasi" on:click={closeNavigation}></button>{/if}
+  <aside class="admin-sidebar" class:nav-open={isMobileMenuOpen} use:mobileNavigation={isMobileMenuOpen} aria-label="Navigasi admin">
+    <div class="sidebar-brand"><Brand /><button class="icon-button mobile-only" data-dialog-close aria-label="Tutup navigasi" on:click={closeNavigation}><X size={20} /></button></div>
     <div class="workspace-label"><span class="workspace-dot"></span><span>Operasional toko</span><span class="scope-tag">Admin</span></div>
     <nav>
       {#each groups as group}
@@ -55,9 +77,9 @@
     </div>
   </aside>
   <div class="admin-workspace">
-    <header class="workspace-header"><div class="flex items-center gap-3"><button class="icon-button mobile-only" aria-label="Buka navigasi" aria-expanded={isMobileMenuOpen} on:click={() => isMobileMenuOpen = true}><Menu size={20} /></button><span class="text-slate-500">VecMart</span><span class="breadcrumb-slash">/</span><span>{activeLabel}</span></div><a href="/kasir" class="cashier-link">Buka kasir <ArrowUpRight size={16} /></a></header>
+    <header class="workspace-header"><div class="flex items-center gap-3"><button bind:this={navigationTrigger} class="icon-button mobile-only" aria-label="Buka navigasi" aria-expanded={isMobileMenuOpen} on:click={() => isMobileMenuOpen = true}><Menu size={20} /></button><span class="text-slate-500">VecMart</span><span class="breadcrumb-slash">/</span><span>{activeLabel}</span></div><a href="/kasir" class="cashier-link">Buka kasir <ArrowUpRight size={16} /></a></header>
     <main id="main-content" class="admin-canvas"><slot /></main>
   </div>
-  <AssistantWidget />
+  {#if $page.url.pathname !== '/admin/asisten'}<AssistantWidget />{/if}
 </div>
 {/if}

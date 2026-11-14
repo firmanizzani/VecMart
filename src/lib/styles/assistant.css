@@ -164,4 +164,7 @@
   .assistant-floating-content .assistant-composer { padding-bottom: max(12px,env(safe-area-inset-bottom)); }
   .assistant-floating-content .assistant-floating-header { padding-top: max(12px,env(safe-area-inset-top)); }
   .assistant-floating-content .assistant-suggestions button { min-height: 44px; }
+  .assistant-chat-bar > button, .assistant-header-actions > button, .assistant-send { min-width: 44px; min-height: 44px; justify-content: center; }
+  .assistant-floating-content .assistant-chat-bar button { min-width: 44px; min-height: 44px; }
+  .assistant-composer textarea { font-size: 16px; }
 }

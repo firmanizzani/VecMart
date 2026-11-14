@@ -10,8 +10,8 @@
   onMount(() => {
     isMounted = true;
     const unsubscribe = authStore.subscribe((user) => {
-      const isLoginPage = $page.url.pathname === '/login';
-      if (!user && !isLoginPage) {
+      const isPublicPage = $page.url.pathname === '/' || $page.url.pathname === '/login';
+      if (!user && !isPublicPage) {
         goto('/login');
       }
     });
@@ -19,7 +19,7 @@
   });
 </script>
 
-{#if isMounted}
+{#if isMounted || $page.url.pathname === '/'}
   <slot />
 {:else}
   <div class="min-h-screen bg-slate-100 flex items-center justify-center">

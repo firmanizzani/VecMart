@@ -304,7 +304,7 @@
 
     <!-- Period Filter Buttons & Action Buttons -->
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+      <div class="dashboard-periods flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
         {#each (['daily', 'weekly', 'monthly', 'yearly', 'custom'] as Period[]) as p}
           <button
             on:click={() => onPeriodChange(p)}
@@ -318,11 +318,11 @@
         {/each}
       </div>
 
-      <button on:click={refreshDashboard} title="Segarkan" class="p-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl  transition-colors">
+      <button on:click={refreshDashboard} aria-label="Segarkan ringkasan" title="Segarkan" class="p-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl  transition-colors">
         <RefreshCw class="w-4 h-4 text-sky-600 {isRefreshing ? 'animate-spin' : ''}" />
       </button>
 
-      <button on:click={exportDashboardReport} class="px-3 py-2 bg-sky-50 border border-sky-200 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-xl flex items-center space-x-1.5  transition-colors">
+      <button on:click={exportDashboardReport} aria-label="Ekspor laporan Excel" class="px-3 py-2 bg-sky-50 border border-sky-200 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-xl flex items-center space-x-1.5  transition-colors">
         <Download class="w-4 h-4 text-sky-600" />
         <span class="hidden sm:inline">{"Ekspor Excel"}</span>
       </button>

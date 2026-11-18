@@ -4,6 +4,7 @@
   import { onMount, tick } from 'svelte';
   import { authStore } from '$lib/stores/authStore';
   import Brand from '$lib/components/Brand.svelte';
+  import AdminAccountMenu from '$lib/components/AdminAccountMenu.svelte';
   import AssistantWidget from '$lib/components/AssistantWidget.svelte';
   import { dialog } from '$lib/actions/dialog';
   import { LayoutDashboard, FileText, Package, Truck, ClipboardCheck, Users, Percent, LogOut, UserCog, Menu, X, ArrowUpRight } from 'lucide-svelte';
@@ -72,7 +73,7 @@
     </nav>
     <div class="sidebar-bottom">
       <a class="settings-link" class:active={$page.url.pathname === '/admin/akun'} href="/admin/akun" on:click={() => isMobileMenuOpen = false}><UserCog size={18} />Manajemen akun</a>
-      <div class="sidebar-user"><span class="user-avatar">{($authStore?.name || 'A').slice(0, 1).toUpperCase()}</span><div><strong>{$authStore?.name}</strong><span>Administrator</span></div><button class="icon-button" aria-label="Keluar dari akun" title="Keluar" on:click={logout}><LogOut size={18} /></button></div>
+      <AdminAccountMenu {logout} />
     </div>
   </aside>
   <div class="admin-workspace">

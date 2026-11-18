@@ -4,8 +4,11 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { authStore } from '$lib/stores/authStore';
+  import { setupInstallation } from '$lib/stores/installStore';
+  import InstallAppHelp from '$lib/components/InstallAppHelp.svelte';
 
   let isMounted = false;
+  onMount(setupInstallation);
 
   onMount(() => {
     isMounted = true;
@@ -36,3 +39,4 @@
     <div class="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 {/if}
+<InstallAppHelp />

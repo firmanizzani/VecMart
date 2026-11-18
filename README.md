@@ -82,3 +82,11 @@ The assistant requires a signed, unexpired admin session, validates explicit val
 To extend the assistant, add an intent and tool schema in `src/server/ai/gemini.ts`, dispatch it from `service.ts`, and implement server-side validation and execution. Product mutations live in `product-actions.ts`; shared reply types and UI states live in `src/lib/ai/types.ts` and `AssistantPanel.svelte`. Add integration tests for authorization, replay, ambiguity, and undo before enabling a new mutation. Updating the model prompt alone does not grant a new capability.
 
 Run `npm run test:ai` for assistant integration tests against the configured database. All write fixtures are rolled back; tests do not call Gemini. `npm run check` validates Svelte and TypeScript.
+
+## Install VecMart
+
+VecMart includes a web app manifest with standalone display, dedicated application icons, and an install button in the public landing-page footer, admin account menu, and cashier header. In supporting browsers, the button opens the browser-managed installation prompt. Otherwise it shows manual instructions, including Safari instructions for iPhone/iPad and Mac. The install control is hidden when the app is running standalone or the browser reports that installation completed.
+
+The installed app starts at `/login`; the existing login flow sends a signed-in user to their role's workspace. It uses the same website and database. Installing does not enable offline checkout: transactions, stock, reports, and Gemini still require an internet connection. The service worker only provides a static explanation when a full-page navigation fails; it does not cache API data, authenticated pages, or queue writes. Browser installation criteria require HTTPS in production; localhost can be used for local testing. SvelteKit builds and registers the service worker in production builds, so test this behavior with `npm run build` and `npm run preview`.
+
+The native installation dialog and available menu labels depend on the browser and operating system. There is no APK/EXE or app-store release in this implementation, and no additional environment variables are required.

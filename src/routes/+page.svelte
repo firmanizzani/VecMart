@@ -1,5 +1,6 @@
 <script lang="ts">
   import Brand from '$lib/components/Brand.svelte';
+  import InstallAppButton from '$lib/components/InstallAppButton.svelte';
   import LandingAssistantDemo from '$lib/components/LandingAssistantDemo.svelte';
   import { landingSales, landingSalesHours } from '$lib/data/landing-sales';
   import { onMount } from 'svelte';
@@ -100,5 +101,5 @@
       <section class="landing-cta landing-width" aria-labelledby="cta-title"><div><div><h2 id="cta-title">Mulai kelola toko Anda.</h2><p>Masuk untuk mengelola transaksi, stok, dan laporan.</p></div><a class="landing-button landing-button-white" href={$authStore ? appHref : '/login'}>{$authStore ? 'Buka aplikasi' : 'Masuk ke VecMart'}<ArrowRight size={20} aria-hidden="true" /></a></div></section>
     </main>
   </div>
-  <footer class="landing-footer landing-width"><Brand /><p>Kasir & inventori minimarket.</p><span>© {new Date().getFullYear()} VecMart. All rights reserved.</span></footer>
+  <footer class="landing-footer landing-width"><Brand /><p>Kasir & inventori minimarket.</p><InstallAppButton /><span>© {new Date().getFullYear()} VecMart. All rights reserved.</span></footer>
 </div>

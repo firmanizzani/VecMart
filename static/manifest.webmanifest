@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "VecMart",
+  "short_name": "VecMart",
+  "description": "Sistem kasir dan inventori minimarket.",
+  "lang": "id",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eaf3ff",
+  "theme_color": "#1764bf",
+  "icons": [
+    { "src": "/icons/vecmart-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/vecmart-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/vecmart-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
